@@ -10,9 +10,8 @@ def construct_grid(XYs, tiles_x, tiles_y):
     dx = (maxx - minx) / tiles_x
     dy = (maxy - miny) / tiles_y
 
-    polys = []
-
     # Build grid of polygons
+    polys = []
     for tile_y in range(0, tiles_y):
         for tile_x in range(0, tiles_x):
             polys.append(
@@ -37,8 +36,6 @@ def assign_randomized(grid, n_groups=5):
 
     # Allocate random group id to each grid row
     grid_id = np.random.choice(n_random_grps, size=n_grids, replace=True)
-
-    # ADD: check most dissimilar
     
     return grid_id
 
@@ -47,15 +44,15 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
     # Reshape length of grid to matrix
     sys_matrix = np.arange(0, tiles_x * tiles_y) \
                    .reshape(tiles_y, tiles_x)
-    leng, wid = sys_matrix.shape
+    length, width = sys_matrix.shape
 
     # Set systematic pattern, diagonal or anti-diagonal
     if direction == 'diagonal':
         diags = [sys_matrix.diagonal(i) 
-                     for i in range(wid-1, -leng,-1)]
+                     for i in range(width-1, -length,-1)]
     if direction == 'anti':
         diags = [sys_matrix[::-1,:].diagonal(i) 
-                     for i in range(-leng+1, wid)]
+                     for i in range(-length+1, width)]
         
     # Construct lookup between diagonal element indices and grid dataframe
     systematic_lookup = dict([
@@ -68,10 +65,12 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
 
     return grid_id
 
-def blocks(XYs, method, tiles_x, tiles_y, **kwargs):
+def blocks(XYs, tiles_x, tiles_y, metod='unique', **kwargs):
     
+    # Construct grid of square polygons of defined size
     grid = construct_grid(XYs, tiles_x, tiles_y)
     
+    # Set grid assignment method
     if method == 'unique':
         grid['grid_id'] = grid.index
     if method == 'randomized':

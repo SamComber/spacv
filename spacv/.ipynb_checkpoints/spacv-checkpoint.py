@@ -2,14 +2,7 @@ import numpy as np
 import geopandas as gpd
 from sklearn.metrics import make_scorer
 
-
-class HBLOCK():
     
-    pass
-
-
-    
-
 
 class SLOO():
     
@@ -24,6 +17,15 @@ class SLOO():
         self.radius = radius
         self.shuffle = shuffle
         self.random_state = random_state
+        
+        minx, miny, maxx, maxy = self.XYs.total_bounds
+        
+        if radius > maxx-minx or radius > maxy-miny:
+            raise ValueError(
+                "Radius too large and excludes all points. Given {}.".format(
+                    self.radius
+                )
+            )
         
     def split(self, X, y=None):
  
@@ -72,19 +74,23 @@ def cross_val_score(
     cv,
     scoring
 ):
+    # Fallback to (a)spatial CV if None
+    if cv is None:
+        cv = KFold(shuffle=True, random_state=0, n_splits=5)
+    
     X = np.array(X)
     y = np.array(y)
     
     scores = []
-    
     scorer = make_scorer(scoring)
-    
     for train_index, test_index in cv.split(X):
-
         model.fit(X[train_index], y[train_index])
         
+        # generalise this
         scores.append(        
             scorer(model, X[test_index].reshape(1, -1), 
                           y[test_index].reshape(-1, 1))
         )
+    scores = np.asarray(scores)    
+    
     return scores

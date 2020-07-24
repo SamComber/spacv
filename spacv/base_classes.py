@@ -9,6 +9,15 @@ class BaseSpatialCV():
     ):
         self.XYs = XYs
         self.random_state = random_state
+        
+        minx, miny, maxx, maxy = self.XYs.total_bounds
+        
+        if buffer_radius > maxx-minx or buffer_radius > maxy-miny:
+            raise ValueError(
+                "Radius too large and excludes all points. Given {}.".format(
+                    self.buffer_radius
+                )
+            )
     
     
     def split(self, X):

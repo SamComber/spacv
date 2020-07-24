@@ -33,7 +33,7 @@ def assign_randomized(grid, n_groups=5):
     # Determine number of randomized groups
     n_random_grps = np.arange(0, n_groups)
     n_grids = grid.shape[0]
-
+    
     # Allocate random group id to each grid row
     grid_id = np.random.choice(n_random_grps, size=n_grids, replace=True)
     
@@ -53,7 +53,6 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
     if direction == 'anti':
         diags = [sys_matrix[::-1,:].diagonal(i) 
                      for i in range(-length+1, width)]
-        
     # Construct lookup between diagonal element indices and grid dataframe
     systematic_lookup = dict([
                             tuple([element, key]) 
@@ -73,10 +72,10 @@ def blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
     # Set grid assignment method
     if method == 'unique':
         grid['grid_id'] = grid.index
-    if method == 'randomized':
+    if method == 'random':
         grid['grid_id'] = assign_randomized(grid, kwargs.get('n_groups'))
     if method == 'systematic':
-        grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y,kwargs.get('direction'))
+        grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, kwargs.get('direction'))
         
     return grid
     

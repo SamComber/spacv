@@ -1,6 +1,6 @@
 def variogram_at_lag(XYs, lag, bw):
     '''
-    Return semivariance values are defined lags.
+    Return semivariance values for defined lags.
     
     Parameters
     ----------

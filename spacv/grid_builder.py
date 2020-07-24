@@ -30,7 +30,7 @@ def construct_grid(XYs, tiles_x, tiles_y):
 
 def assign_randomized(grid, n_groups=5):
     
-    # Determinate number of randomized groups
+    # Determine number of randomized groups
     n_random_grps = np.arange(0, n_groups)
     n_grids = grid.shape[0]
 
@@ -65,7 +65,7 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
 
     return grid_id
 
-def blocks(XYs, tiles_x, tiles_y, metod='unique', **kwargs):
+def blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
     
     # Construct grid of square polygons of defined size
     grid = construct_grid(XYs, tiles_x, tiles_y)

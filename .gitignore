@@ -2,3 +2,4 @@
 __pycache__/
 spacv/.ipynb_checkpoints/
 spacv/__pycache__/
+.gitignore/

@@ -1,8 +1,9 @@
 import numpy as np
 import geopandas as gpd
 from sklearn.metrics import make_scorer
+from .base_classes import BaseSpatialCV
 
-class HBLOCK():
+class HBLOCK(BaseSpatialCV):
     
     def __init__(
         self,
@@ -22,25 +23,6 @@ class HBLOCK():
         self.tiles_y = tiles_y
         self.method = method
         self.buffer_radius = buffer_radius
-    
-    def split(self, X):
-
-        num_samples = X.shape[0]
-
-        indices = np.arange(num_samples)
-    
-        for test_index, train_excluded in self._iter_test_indices(X):
-
-            train_index = np.setdiff1d(
-                                np.union1d(
-                                    indices,
-                                    train_excluded
-                                ), np.intersect1d(indices, train_excluded)
-                            )
-
-            test_index = indices[test_index]
-            
-            yield train_index, test_index
             
 
     def _iter_test_indices(self, X):
@@ -81,51 +63,32 @@ class HBLOCK():
                 yield test_points, None
 
 
-class SLOO():
+class SLOO(BaseSpatialCV):
     
     def __init__(
         self,
         XYs = None,
-        radius = None,
+        buffer_radius = None,
         shuffle = False,
         random_state = None
     ):
         self.XYs = XYs
-        self.radius = radius
+        self.buffer_radius = buffer_radius
         self.shuffle = shuffle
         self.random_state = random_state
         
         minx, miny, maxx, maxy = self.XYs.total_bounds
         
-        if radius > maxx-minx or radius > maxy-miny:
+        if buffer_radius > maxx-minx or buffer_radius > maxy-miny:
             raise ValueError(
                 "Radius too large and excludes all points. Given {}.".format(
-                    self.radius
+                    self.buffer_radius
                 )
             )
-        
-    def split(self, X, y=None):
- 
-        num_samples = X.shape[0]
-
-        indices = np.arange(num_samples)
-                
-        for test_index, sloo_train_exclude in self._iter_test_indices(X):
-                
-            train_index = np.setdiff1d(
-                                np.union1d(
-                                    indices,
-                                    sloo_train_exclude
-                                ), np.intersect1d(indices, sloo_train_exclude)
-                            )
-            
-            test_index = indices[test_index]
-                
-            yield train_index, test_index    
             
     def _iter_test_indices(self, X):
     
-        radius = self.radius
+        buffer_radius = self.buffer_radius
           
         sloo_n = X.shape[0]
             

@@ -59,44 +59,90 @@ def plot_variogram(XYs, y, lags, bw, **kwargs):
     
     return fig, ax
 
-
-def aoa(test_data, training_data, model=None, variables='all', thres=0.95):
-    '''
-    Meyer and Pebesma (2020) Area of Applicability https://arxiv.org/pdf/2005.07939.pdf
-    
-    '''
-    
+def aoa(new_data, 
+        training_data, 
+        model=None, 
+        thres=0.95,
+        fold_indices=None
+       ):
     if len(training_data) <= 1:
-        raise Exception('At least two training instances need to be specified.') 
-    
-    # Scale data and weight if applicable
+        raise Exception('At least two training instances need to be specified.')
+                    
+    # Scale data 
     training_data = (training_data - np.mean(training_data)) / np.std(training_data)
-    test_data = (test_data - np.mean(test_data)) / np.std(test_data)
+    new_data = (new_data - np.mean(new_data)) / np.std(new_data)
 
+    # Calculate nearest training instance to test data, return Euclidean distances
     tree = KDTree(training_data, metric='euclidean') 
-    mindist, _ = tree.query(test_data, k=1, return_distance=True)
+    mindist, _ = tree.query(new_data, k=1, return_distance=True)
 
+    # Build matrix of pairwise distances 
     paired_distances = pdist(training_data)
     train_dist = squareform(paired_distances)
-
-    train_dist_mean = train_dist.mean(axis=1)
-    train_dist_avgmean = np.mean(train_dist_mean)
-
-
-    mindist = mindist / train_dist_avgmean
-
-    # Set diagonal nan to exclude from average
     np.fill_diagonal(train_dist, np.nan)
+    
+    # Remove data points that are within the same fold
+    if fold_indices:            
+        # Get number of training instances in each fold
+        instances_in_folds = [len(fold) for fold in fold_indices]
+        instance_fold_id = np.repeat(np.arange(0, len(fold_indices)), instances_in_folds)
+
+        # Create mapping between training instance and fold ID
+        fold_indices = np.concatenate(fold_indices)
+        folds = np.vstack((fold_indices, instance_fold_id)).T
+
+        # Mask training points in same fold for DI measure calculation
+        for i, row in enumerate(train_dist):
+            mask = folds[:,0] == folds[:,0][i]
+            train_dist[i, mask] = np.nan
+
+    # Scale distance to nearest training point by average distance across training data
+    train_dist_mean = np.nanmean(train_dist, axis=1)
+    train_dist_avgmean = np.mean(train_dist_mean)
+    mindist /= train_dist_avgmean    
 
     # Define threshold for AOA
     train_dist_min = np.nanmin(train_dist, axis=1)
-    aoa_train_stats = np.percentile(train_dist_min / train_dist_avgmean, 
+    aoa_train_stats = np.quantile(train_dist_min / train_dist_avgmean, 
                                     q = np.array([0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1]))
-    thres = np.percentile(train_dist_min / train_dist_avgmean, q = thres)
-
+    thres = np.quantile(train_dist_min / train_dist_avgmean, q = thres)
+    
     # We choose the AOA as the area where the DI does not exceed the threshold
-    out = mindist.reshape(-1)
+    DIs = mindist.reshape(-1)
     masked_result = np.repeat(1, len(mindist))
     masked_result[out > thres] = 0
     
-    return out, masked_result
+    return DIs, masked_result
+
+def plot_aoa(new_data, training_data, columns, figsize, **kwargs):
+    
+    # Pop geometry for use later in plotting
+    new_data = new_data.copy()
+    new_data_geometry = new_data.pop('geometry')
+    
+    # Subset to variables
+    new_data_aoa = new_data[columns]
+    training_data_aoa = training_data[columns]
+    
+    DIs, masked_result = aoa(new_data_aoa, 
+                             training_data_aoa, 
+                             fold_indices=fold_indices)
+    
+    new_data.loc[:, 'DI'] = DIs
+    new_data.loc[:, 'AOA'] = masked_result
+    new_data.loc[:, 'geometry'] = new_data_geometry
+    
+    new_data = gpd.GeoDataFrame(new_data, geometry=new_data['geometry'])
+        
+    f,ax = plt.subplots(1, 2, figsize=figsize)
+    
+    new_data.plot(ax=ax[0], column='DI', legend=True, cmap='viridis', legend_kwds={'shrink':.7})
+    training_data.plot(ax=ax[0], alpha=.1)
+    
+    new_data.plot(ax=ax[1], column='AOA', categorical=True, legend=True)
+    training_data.plot(ax=ax[1], alpha=.1)
+
+    ax[0].set_title('Dissimilarity index (DI)')
+    ax[1].set_title('AOA');
+
+    return f, ax

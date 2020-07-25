@@ -21,6 +21,9 @@ class BaseSpatialCV():
     
     
     def split(self, X):
+        
+        # ADD: check X input, must include XYs
+        
         num_samples = X.shape[0]
         indices = np.arange(num_samples)
     

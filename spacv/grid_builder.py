@@ -2,8 +2,63 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon
 
-def construct_grid(XYs, tiles_x, tiles_y):
+def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
+    """
+    Build grid over study area with user-defined number of tiles.
     
+    Parameters
+    ----------
+    XYs : Geoseries series
+        Series containing X and Y coordinates.
+    tiles_x : integer
+        Integer declaring number of tiles along X axis.
+    tiles_y : integer
+        Integer declaring number of tiles along Y axis.
+    method : string
+        String identifying grid assignment method.
+    n_groups : integer
+        Integer declaring number of randomized block groups.
+    direction : string
+        String stating direction of systematic diagonal pattern.
+        
+    Returns
+    -------
+    grid : GeoDataFrame Dataframe
+        GeoDataFrame with square grids as shapely polygons.
+    
+    """
+    # Construct grid of square polygons of defined size
+    grid = construct_grid(XYs, tiles_x, tiles_y)
+    
+    # Set grid assignment method
+    if method == 'unique':
+        grid['grid_id'] = grid.index
+    if method == 'random':
+        grid['grid_id'] = assign_randomized(grid, kwargs.get('n_groups'))
+    if method == 'systematic':
+        grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, kwargs.get('direction'))
+        
+    return grid
+    
+def construct_grid(XYs, tiles_x, tiles_y):
+    """
+    Build grid over study area with user-defined number of tiles.
+    
+    Parameters
+    ----------
+    XYs : Geoseries series
+        Series containing X and Y coordinates.
+    tiles_x : integer
+        Integer declaring number of tiles along X axis.
+    tiles_y : integer
+        Integer declaring number of tiles along Y axis.
+        
+    Returns
+    -------
+    grid : GeoDataFrame Dataframe
+        GeoDataFrame with square grids as shapely polygons.
+    
+    """
     minx, miny, maxx, maxy = XYs.total_bounds
 
     # Set length and height of tiles
@@ -26,9 +81,14 @@ def construct_grid(XYs, tiles_x, tiles_y):
                     (minx + (tile_x * dx), miny + (tile_y + 1) * dy )
             ]))
 
-    return gpd.GeoDataFrame({'geometry':polys})
+    grid = gpd.GeoDataFrame({'geometry':polys})
+            
+    return grid    
 
 def assign_randomized(grid, n_groups=5):
+    """
+    Set grid pattern as randomized by randomly assigning grid IDs.
+    """
     # Determine number of randomized groups
     n_random_grps = np.arange(0, n_groups)
     n_grids = grid.shape[0]
@@ -39,6 +99,9 @@ def assign_randomized(grid, n_groups=5):
     return grid_id
 
 def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
+    """
+    Set grid pattern as systematic by assigning grid IDs along diagonals, normal and anti-diagonal.
+    """
     # Reshape length of grid to matrix
     sys_matrix = np.arange(0, tiles_x * tiles_y) \
                    .reshape(tiles_y, tiles_x)
@@ -61,18 +124,3 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
     grid_id = grid.index.map(systematic_lookup)
 
     return grid_id
-
-def blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
-    # Construct grid of square polygons of defined size
-    grid = construct_grid(XYs, tiles_x, tiles_y)
-    
-    # Set grid assignment method
-    if method == 'unique':
-        grid['grid_id'] = grid.index
-    if method == 'random':
-        grid['grid_id'] = assign_randomized(grid, kwargs.get('n_groups'))
-    if method == 'systematic':
-        grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, kwargs.get('direction'))
-        
-    return grid
-    

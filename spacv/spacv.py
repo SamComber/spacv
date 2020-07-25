@@ -1,9 +1,10 @@
 import numpy as np
 import geopandas as gpd
 from sklearn.metrics import make_scorer
+from sklearn.neighbors import KDTree
 from .base_classes import BaseSpatialCV
-from .grid_builder import blocks
-
+from .grid_builder import construct_blocks
+from .utils import geometry_to_2d
 
 
 # def check_data(data):
@@ -39,7 +40,7 @@ class HBLOCK(BaseSpatialCV):
         self.buffer_radius = buffer_radius
         self.direction = direction
         self.n_groups = n_groups
-            
+        
 
     def _iter_test_indices(self, X):
         tiles_x = self.tiles_x
@@ -53,19 +54,21 @@ class HBLOCK(BaseSpatialCV):
         XYs = gpd.GeoDataFrame(({'geometry':X}))
                 
         # Define grid type used in CV procedure
-        grid = blocks(XYs, 
+        grid = construct_blocks(XYs, 
                       tiles_x = tiles_x, 
                       tiles_y = tiles_y, 
                       method = method, 
                       direction = direction, 
                       n_groups = n_groups)
-
+        
+        # Assign pts to grids
+        XYs = assign_pt_to_grid(XYs, grid)
+        grid_ids = np.unique(grid.grid_id)
+        
         # Yield test indices and optionally training indices within buffer
-        for grid_id in grid.grid_id:
+        for grid_id in grid_ids:
 
-            # 
-            grid_poly = grid.loc[[grid_id]]
-            test_points = gpd.sjoin(XYs, grid_poly).index.values
+            test_points = XYs.loc[XYs['grid_id'] == grid_id ].index.values
 
             # Remove empty grids
             if len(test_points) < 1:
@@ -74,17 +77,17 @@ class HBLOCK(BaseSpatialCV):
             # Remove training points from dead zone buffer
             if buffer_radius > 0:    
                 # Buffer grid and clip training instances
+                grid_poly = grid.loc[[grid_id]]
                 grid_poly_buffer = grid_poly.buffer(buffer_radius)
                 deadzone_points = gpd.clip(XYs, grid_poly_buffer)
                 hblock_train_exclude = deadzone_points[~deadzone_points.index.isin(test_points)].index.values
-
+                
                 yield test_points, hblock_train_exclude
 
             else:
                 # Yield empty array because no training data removed in dead zone when buffer is zero
                 empty = np.array([], dtype=np.int)
                 yield test_points, empty
-
 
 class SLOO(BaseSpatialCV):
     
@@ -142,3 +145,25 @@ def cross_val_score(
         )
     scores = np.asarray(scores)    
     return scores
+
+def assign_pt_to_grid(XYs, grid):
+    
+    XYs = gpd.sjoin(XYs, grid, how='left' , op='within')
+
+    # Nan are assigned to points at grid borders, so we map nan to nearest grid
+    if XYs['grid_id'].isna().any():
+
+        grid_centroid = grid.geometry.centroid
+        grid_centroid = geometry_to_2d(grid_centroid)
+
+        border_pt_index = XYs['grid_id'].isna()
+        border_pts = XYs[border_pt_index].geometry
+        border_pts = geometry_to_2d(border_pts)
+
+        tree = KDTree(grid_centroid, metric='euclidean') 
+        grid_id  = tree.query(border_pts, k=1, return_distance=False)
+
+        XYs.loc[border_pt_index, 'grid_id'] = grid_id
+        XYs = XYs.drop(columns=['index_right'])
+
+    return XYs

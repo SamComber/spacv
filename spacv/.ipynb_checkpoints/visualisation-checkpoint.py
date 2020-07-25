@@ -5,7 +5,7 @@ from scipy.spatial.distance import pdist, squareform
 sns.set_style("whitegrid") # pretty plots
 
 def variogram_at_lag(XYs, y, lag, bw):
-    '''
+    """
     Return semivariance values for defined lags.
     
     Parameters
@@ -23,7 +23,7 @@ def variogram_at_lag(XYs, y, lag, bw):
     -------
     semivariances : Array of floats
         Array of semivariances for each lag
-    '''
+    """
     
     XYs = np.array(list(map(lambda x : (x.x, x.y), XYs)))
     y = np.asarray(y)
@@ -65,6 +65,10 @@ def aoa(new_data,
         thres=0.95,
         fold_indices=None
        ):
+    """
+    Area of Applicability (AOA) measure for spatial prediction models
+    
+    """
     if len(training_data) <= 1:
         raise Exception('At least two training instances need to be specified.')
                     

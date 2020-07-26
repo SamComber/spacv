@@ -4,6 +4,8 @@ from scipy.spatial.distance import pdist, squareform
 
 sns.set_style("whitegrid") # pretty plots
 
+# ADD: create nicer plots, they're horrible
+
 def variogram_at_lag(XYs, y, lag, bw):
     """
     Return semivariance values for defined lags.
@@ -25,7 +27,7 @@ def variogram_at_lag(XYs, y, lag, bw):
         Array of semivariances for each lag
     """
     
-    XYs = np.array(list(map(lambda x : (x.x, x.y), XYs)))
+    XYs = geometry_to_2d(XYs.geometry)
     y = np.asarray(y)
 
     paired_distances = pdist(XYs)
@@ -66,7 +68,8 @@ def aoa(new_data,
         fold_indices=None
        ):
     """
-    Area of Applicability (AOA) measure for spatial prediction models
+    Area of Applicability (AOA) measure for spatial prediction models from
+    Meyer and Pebesma (2020) https://arxiv.org/abs/2005.07939
     
     """
     if len(training_data) <= 1:

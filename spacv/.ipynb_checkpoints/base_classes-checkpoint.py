@@ -1,4 +1,5 @@
 import numpy as np
+from .utils import convert_geoseries
 
 class BaseSpatialCV():
     
@@ -10,7 +11,8 @@ class BaseSpatialCV():
         self.buffer_radius = buffer_radius
         
     def split(self, X):
-        
+        X = convert_geoseries(X)
+
         minx, miny, maxx, maxy = X.total_bounds
         buffer_radius = self.buffer_radius
         
@@ -20,9 +22,6 @@ class BaseSpatialCV():
                     self.buffer_radius
                 )
             )
-        
-        # ADD: check X input, must include XYs
-        
         num_samples = X.shape[0]
         indices = np.arange(num_samples)
         for test_index, train_excluded in self._iter_test_indices(X):

@@ -1,6 +1,8 @@
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon
+from sklearn.neighbors import KDTree
+from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
 
 def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
     """
@@ -37,7 +39,10 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
         grid['grid_id'] = assign_randomized(grid, kwargs.get('n_groups'))
     if method == 'systematic':
         grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, kwargs.get('direction'))
-        
+    if method == 'optimized_random':
+        grid['grid_id'] = assign_optimized_random(grid, XYs, kwargs.get('data'), 
+                                                             kwargs.get('n_groups'),
+                                                             kwargs.get('n_sims'))
     return grid
     
 def construct_grid(XYs, tiles_x, tiles_y):
@@ -85,19 +90,6 @@ def construct_grid(XYs, tiles_x, tiles_y):
             
     return grid    
 
-def assign_randomized(grid, n_groups=5):
-    """
-    Set grid pattern as randomized by randomly assigning grid IDs.
-    """
-    # Determine number of randomized groups
-    n_random_grps = np.arange(0, n_groups)
-    n_grids = grid.shape[0]
-    
-    # Allocate random group id to each grid row
-    grid_id = np.random.choice(n_random_grps, size=n_grids, replace=True)
-    
-    return grid_id
-
 def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
     """
     Set grid pattern as systematic by assigning grid IDs along diagonals, normal and anti-diagonal.
@@ -124,3 +116,76 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
     grid_id = grid.index.map(systematic_lookup)
 
     return grid_id
+
+
+def assign_randomized(grid, n_groups=5):
+    """
+    Set grid pattern as randomized by randomly assigning grid IDs.
+    """
+    # Determine number of randomized groups
+    n_random_grps = np.arange(0, n_groups)
+    n_grids = grid.shape[0]
+    
+    # Allocate random group id to each grid row
+    grid_id = np.random.choice(n_random_grps, size=n_grids, replace=True)
+    
+    return grid_id
+
+def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10):
+
+    # Check data inputs
+    data = convert_numpy(data)
+    
+    optimized_grid = {}
+
+    for sim in range(n_sims):
+        grid_id = assign_randomized(grid, n_groups)
+        grid['grid_id'] = grid_id
+        folds = assign_pt_to_grid(XYs, grid)
+
+        # Scale for SSR calculation
+        X = (data - data.mean(axis=0)) / data.std(axis=0)
+        Xbar = X.mean(axis=0)
+        X_grid_means = np.array([ X[v].mean(axis=0) 
+                                     for k, v in folds.groupby('grid_id').groups.items()])
+
+        # Calculate dissimilarity between folds and mean values across all data 
+        sse = sum(
+            sum((X_grid_means - Xbar)**2)
+        )
+
+        optimized_grid.update( {sim : {'sse': sse, 'grid_id': grid_id}} )
+
+    # Take the optimized grid as one that minimises dissimilarity between folds
+    minimised_obj = min(optimized_grid, key = lambda x : optimized_grid[x]['sse'])
+    grid_id = optimized_grid[minimised_obj]['grid_id']
+
+    return grid_id
+
+
+def assign_pt_to_grid(XYs, grid):
+    
+    XYs = convert_geodataframe(XYs)
+    
+    # Sjoin pts to grid polygons
+    XYs = gpd.sjoin(XYs, grid, how='left' , op='within')
+
+    # In rare cases, points will sit at the border separating two grids
+    if XYs['grid_id'].isna().any():
+        grid_centroid = grid.geometry.centroid
+        grid_centroid = geometry_to_2d(grid_centroid)
+
+        # Find border pts
+        border_pt_index = XYs['grid_id'].isna()
+        border_pts = XYs[border_pt_index].geometry
+        border_pts = geometry_to_2d(border_pts)
+
+        # Search for nearest grid and assign pt to it
+        tree = KDTree(grid_centroid, metric='euclidean') 
+        grid_id  = tree.query(border_pts, k=1, return_distance=False)
+
+        # Update border pt grid IDs
+        XYs.loc[border_pt_index, 'grid_id'] = grid_id
+        XYs = XYs.drop(columns=['index_right'])
+
+    return XYs

@@ -3,22 +3,8 @@ import geopandas as gpd
 from sklearn.metrics import make_scorer
 from sklearn.neighbors import KDTree
 from .base_classes import BaseSpatialCV
-from .grid_builder import construct_blocks
-from .utils import geometry_to_2d
-
-
-# def check_data(data):
-
-#     # check method
-    
-#     # check tiles scalar
-    
-#     # check buffer radius
-    
-    
-#     if not isinstance(data, tuple):
-#         data = (data,)
-#     return data
+from .grid_builder import construct_blocks, assign_pt_to_grid
+from .utils import geometry_to_2d, convert_geodataframe
 
 class HBLOCK(BaseSpatialCV):
     
@@ -29,19 +15,19 @@ class HBLOCK(BaseSpatialCV):
         method='unique',
         buffer_radius=0,
         direction='diagonal',
-        n_groups=5
-    ):
-        
-        # ADD: Check data inputs function 
-        
+        n_groups=5,
+        data=None,
+        n_sims=10
+    ):        
         self.tiles_x = tiles_x
         self.tiles_y = tiles_y
         self.method = method
         self.buffer_radius = buffer_radius
         self.direction = direction
         self.n_groups = n_groups
+        self.data = data
+        self.n_sims = n_sims
         
-
     def _iter_test_indices(self, X):
         tiles_x = self.tiles_x
         tiles_y = self.tiles_y
@@ -49,17 +35,21 @@ class HBLOCK(BaseSpatialCV):
         buffer_radius = self.buffer_radius
         direction = self.direction
         n_groups = self.n_groups
+        data = self.data
+        n_sims = self.n_sims
         
         # Convert to GDF to use Geopandas functions
         XYs = gpd.GeoDataFrame(({'geometry':X}))
                 
         # Define grid type used in CV procedure
-        grid = construct_blocks(XYs, 
+        grid = construct_blocks(X, 
                       tiles_x = tiles_x, 
                       tiles_y = tiles_y, 
                       method = method, 
                       direction = direction, 
-                      n_groups = n_groups)
+                      n_groups = n_groups,
+                      data = data, 
+                      n_sims = n_sims)
         
         # Assign pts to grids
         XYs = assign_pt_to_grid(XYs, grid)
@@ -145,25 +135,3 @@ def cross_val_score(
         )
     scores = np.asarray(scores)    
     return scores
-
-def assign_pt_to_grid(XYs, grid):
-    
-    XYs = gpd.sjoin(XYs, grid, how='left' , op='within')
-
-    # Nan are assigned to points at grid borders, so we map nan to nearest grid
-    if XYs['grid_id'].isna().any():
-
-        grid_centroid = grid.geometry.centroid
-        grid_centroid = geometry_to_2d(grid_centroid)
-
-        border_pt_index = XYs['grid_id'].isna()
-        border_pts = XYs[border_pt_index].geometry
-        border_pts = geometry_to_2d(border_pts)
-
-        tree = KDTree(grid_centroid, metric='euclidean') 
-        grid_id  = tree.query(border_pts, k=1, return_distance=False)
-
-        XYs.loc[border_pt_index, 'grid_id'] = grid_id
-        XYs = XYs.drop(columns=['index_right'])
-
-    return XYs

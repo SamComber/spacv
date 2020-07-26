@@ -1,7 +1,8 @@
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon
-from sklearn.neighbors import KDTree
+from sklearn.neighbors import BallTree
+
 from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
 
 def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
@@ -35,14 +36,17 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
     # Set grid assignment method
     if method == 'unique':
         grid['grid_id'] = grid.index
-    if method == 'systematic':
+    elif method == 'systematic':
         grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, kwargs.get('direction'))
-    if method == 'random':
+    elif method == 'random':
         grid['grid_id'] = assign_randomized(grid, kwargs.get('n_groups'))
-    if method == 'optimized_random':
+    elif method == 'optimized_random':
         grid['grid_id'] = assign_optimized_random(grid, XYs, kwargs.get('data'), 
                                                              kwargs.get('n_groups'),
                                                              kwargs.get('n_sims'))
+    else:
+        raise ValueError('Method not recognised. Choose between: unique, systematic, random or optimized_random')
+    
     return grid
     
 def construct_grid(XYs, tiles_x, tiles_y):
@@ -85,7 +89,6 @@ def construct_grid(XYs, tiles_x, tiles_y):
                     #top-left
                     (minx + (tile_x * dx), miny + (tile_y + 1) * dy )
             ]))
-
     grid = gpd.GeoDataFrame({'geometry':polys})
             
     return grid    
@@ -112,7 +115,6 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
                                 for key, diag in enumerate(diags) 
                                     for element in diag
                         ])
-
     grid_id = grid.index.map(systematic_lookup)
 
     return grid_id
@@ -132,12 +134,18 @@ def assign_randomized(grid, n_groups=5):
     return grid_id
 
 def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10):
-
-    # Check data inputs
+    """
+    Set grid pattern as optimized random by taking grid IDs that minimize dissimilarity between folds.
+    """
+    if data is None:
+        raise ValueError(
+            'Data parameter must be supplied to spacv.HBLOCK() to compute fold dissimilarity.'
+        )
+    
     data = convert_numpy(data)
     
+    # Build dictionary of grid IDs with paired SSR for dissimilarity 
     optimized_grid = {}
-
     for sim in range(n_sims):
         grid_id = assign_randomized(grid, n_groups)
         grid['grid_id'] = grid_id
@@ -164,10 +172,11 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10):
 
 
 def assign_pt_to_grid(XYs, grid):
-    
-    XYs = convert_geodataframe(XYs)
-    
+    """
+    Spatial join pts to grids. Reassign border points to nearest grid based on centroid distance. 
+    """
     # Sjoin pts to grid polygons
+    XYs = convert_geodataframe(XYs)
     XYs = gpd.sjoin(XYs, grid, how='left' , op='within')
 
     # In rare cases, points will sit at the border separating two grids
@@ -179,11 +188,10 @@ def assign_pt_to_grid(XYs, grid):
         border_pt_index = XYs['grid_id'].isna()
         border_pts = XYs[border_pt_index].geometry
         border_pts = geometry_to_2d(border_pts)
-
-        # Search for nearest grid and assign pt to it
-        tree = KDTree(grid_centroid, metric='euclidean') 
+        
+        tree = BallTree(grid_centroid, metric='euclidean') 
         grid_id  = tree.query(border_pts, k=1, return_distance=False)
-
+        
         # Update border pt grid IDs
         XYs.loc[border_pt_index, 'grid_id'] = grid_id
         XYs = XYs.drop(columns=['index_right'])

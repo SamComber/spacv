@@ -1,5 +1,5 @@
 import seaborn as sns
-from sklearn.neighbors import KDTree
+from sklearn.neighbors import BallTree
 from scipy.spatial.distance import pdist, squareform
 
 sns.set_style("whitegrid") # pretty plots
@@ -80,7 +80,7 @@ def aoa(new_data,
     new_data = (new_data - np.mean(new_data)) / np.std(new_data)
 
     # Calculate nearest training instance to test data, return Euclidean distances
-    tree = KDTree(training_data, metric='euclidean') 
+    tree = BallTree(training_data, metric='euclidean') 
     mindist, _ = tree.query(new_data, k=1, return_distance=True)
 
     # Build matrix of pairwise distances 

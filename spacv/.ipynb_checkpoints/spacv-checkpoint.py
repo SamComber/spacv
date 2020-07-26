@@ -7,13 +7,27 @@ from .grid_builder import construct_blocks, assign_pt_to_grid
 from .utils import geometry_to_2d, convert_geodataframe
 
 class HBLOCK(BaseSpatialCV):
+    """
+    H-Blocking spatial cross-validator.
     
+    Yields indices to split data into training and test sets.
+    
+    Parameters
+    ----------
+    tiles_x : integer
+    
+    
+    
+    
+    
+    """
     def __init__(
         self,
         tiles_x=5,
         tiles_y=5,
         method='unique',
         buffer_radius=0,
+        shuffle=False,
         direction='diagonal',
         n_groups=5,
         data=None,
@@ -23,26 +37,28 @@ class HBLOCK(BaseSpatialCV):
         self.tiles_y = tiles_y
         self.method = method
         self.buffer_radius = buffer_radius
+        self.shuffle = shuffle
         self.direction = direction
         self.n_groups = n_groups
         self.data = data
         self.n_sims = n_sims
         
-    def _iter_test_indices(self, X):
+    def _iter_test_indices(self, XYs):
         tiles_x = self.tiles_x
         tiles_y = self.tiles_y
         method = self.method
         buffer_radius = self.buffer_radius
+        shuffle = self.shuffle
         direction = self.direction
         n_groups = self.n_groups
         data = self.data
         n_sims = self.n_sims
         
         # Convert to GDF to use Geopandas functions
-        XYs = gpd.GeoDataFrame(({'geometry':X}))
+        XYs = gpd.GeoDataFrame(({'geometry':XYs}))
                 
         # Define grid type used in CV procedure
-        grid = construct_blocks(X, 
+        grid = construct_blocks(XYs, 
                       tiles_x = tiles_x, 
                       tiles_y = tiles_y, 
                       method = method, 
@@ -55,15 +71,18 @@ class HBLOCK(BaseSpatialCV):
         XYs = assign_pt_to_grid(XYs, grid)
         grid_ids = np.unique(grid.grid_id)
         
+        # Shuffle grid order 
+        if shuffle:
+            np.random.shuffle(grid_ids)
+        
         # Yield test indices and optionally training indices within buffer
         for grid_id in grid_ids:
-
             test_points = XYs.loc[XYs['grid_id'] == grid_id ].index.values
 
             # Remove empty grids
             if len(test_points) < 1:
                 continue
-
+            
             # Remove training points from dead zone buffer
             if buffer_radius > 0:    
                 # Buffer grid and clip training instances

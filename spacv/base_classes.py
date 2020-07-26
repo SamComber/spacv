@@ -10,10 +10,14 @@ class BaseSpatialCV():
         self.random_state = random_state
         self.buffer_radius = buffer_radius
         
-    def split(self, X):
-        X = convert_geoseries(X)
+    def split(self, XYs):
+        
+        # ADD: check_inputs, categorical, dtypes etc.
+        
+        
+        X = convert_geoseries(XYs)
 
-        minx, miny, maxx, maxy = X.total_bounds
+        minx, miny, maxx, maxy = XYs.total_bounds
         buffer_radius = self.buffer_radius
         
         if buffer_radius > maxx-minx or buffer_radius > maxy-miny:
@@ -22,9 +26,12 @@ class BaseSpatialCV():
                     self.buffer_radius
                 )
             )
-        num_samples = X.shape[0]
+            
+        num_samples = XYs.shape[0]
         indices = np.arange(num_samples)
-        for test_index, train_excluded in self._iter_test_indices(X):
+        for test_index, train_excluded in self._iter_test_indices(XYs):            
+            train_excluded = np.concatenate([test_index, train_excluded])
+
             # Exclude training instances within buffered region of geometry
             train_index = np.setdiff1d(
                                 np.union1d(

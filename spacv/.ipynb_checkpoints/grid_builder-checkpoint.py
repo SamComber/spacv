@@ -35,10 +35,10 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
     # Set grid assignment method
     if method == 'unique':
         grid['grid_id'] = grid.index
-    if method == 'random':
-        grid['grid_id'] = assign_randomized(grid, kwargs.get('n_groups'))
     if method == 'systematic':
         grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, kwargs.get('direction'))
+    if method == 'random':
+        grid['grid_id'] = assign_randomized(grid, kwargs.get('n_groups'))
     if method == 'optimized_random':
         grid['grid_id'] = assign_optimized_random(grid, XYs, kwargs.get('data'), 
                                                              kwargs.get('n_groups'),

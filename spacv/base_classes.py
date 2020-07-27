@@ -2,8 +2,6 @@ import numpy as np
 import geopandas as gpd
 from .utils import convert_geoseries, convert_geodataframe
 
-import time
-
 class BaseSpatialCV():
     
     def __init__(

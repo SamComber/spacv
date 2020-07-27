@@ -7,8 +7,6 @@ from .grid_builder import construct_blocks, assign_pt_to_grid
 from .utils import geometry_to_2d, convert_geodataframe
 from sklearn.cluster import MiniBatchKMeans
 
-import time
-
 class HBLOCK(BaseSpatialCV):
     """
     H-Blocking spatial cross-validator.

@@ -1,6 +1,7 @@
 import numpy as np
 import geopandas as gpd
 import pandas as pd
+from shapely.geometry import Point, Polygon
 
 def geometry_to_2d(geometry):
     return np.array(list(map(lambda x : (x.x, x.y), geometry)))
@@ -17,8 +18,10 @@ def convert_geodataframe(XYs):
         XYs = gpd.GeoDataFrame({'geometry':XYs})
     if isinstance(XYs, np.ndarray):
         XYs = gpd.GeoDataFrame({'geometry': gpd.points_from_xy(XYs) })
+    if isinstance(XYs, (Point, Polygon)):
+        XYs = gpd.GeoDataFrame({'geometry': [XYs] })
     return XYs
 
 def convert_numpy(X):
-    if isinstance(X, pd.DataFrame) or isinstance(X, pd.Series):
+    if isinstance(X, (pd.DataFrame, pd.Series)):
         return X.values

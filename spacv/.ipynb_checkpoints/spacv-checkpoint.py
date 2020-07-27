@@ -7,6 +7,8 @@ from .grid_builder import construct_blocks, assign_pt_to_grid
 from .utils import geometry_to_2d, convert_geodataframe
 from sklearn.cluster import MiniBatchKMeans
 
+import time
+
 class HBLOCK(BaseSpatialCV):
     """
     H-Blocking spatial cross-validator.
@@ -74,9 +76,10 @@ class HBLOCK(BaseSpatialCV):
             if len(test_indices) < 1:
                 continue
             
+            grid_poly_buffer = grid.loc[[grid_id]].buffer(self.buffer_radius)
             test_indices, train_exclude = \
-                super()._yield_test_indices(XYs, test_indices, self.buffer_radius)
-            
+                super()._remove_buffered_indices(XYs, test_indices, 
+                                            self.buffer_radius, grid_poly_buffer)
             yield test_indices, train_exclude                     
                     
 class SKCV(BaseSpatialCV):
@@ -100,7 +103,8 @@ class SKCV(BaseSpatialCV):
             )
         # If K = N, SLOO
         if len(XYs) == self.folds:
-            indices_from_folds = XYs.index.values
+            num_samples = XYs.shape[0]
+            indices_from_folds = np.arange(num_samples)
         else:
             # Partion XYs space into folds
             XYs_to_2d = geometry_to_2d(XYs)
@@ -110,15 +114,14 @@ class SKCV(BaseSpatialCV):
                                       for i in range( self.folds )]
         
         for fold_indices in indices_from_folds:   
-            
             if len(XYs) == self.folds:
                 test_indices = np.array([fold_indices])
             else:
                 test_indices = np.array(fold_indices)
-            
+            fold_convex_hull = XYs.loc[test_indices].unary_union.convex_hull
             test_indices, train_exclude = \
-                super()._yield_test_indices(XYs, test_indices, self.buffer_radius)
-            
+                super()._remove_buffered_indices(XYs, test_indices, 
+                                            self.buffer_radius, fold_convex_hull)
             yield test_indices, train_exclude
               
                 
@@ -149,49 +152,3 @@ class RepeatSKCV(SKCV):
             for train_index, test_index in cv.split(XYs):
                 yield train_index, test_index
         
-               
-def cross_val_score(
-    model,
-    XYs,
-    X,
-    y,
-    cv,
-    scoring
-):
-    # Fallback to aspatial CV if None
-    if cv is None:
-        cv = KFold(shuffle=True, random_state=0, n_splits=5)
-    XYs, X, y = validate_inputs(XYs, X, y)
-    
-    scores = []
-    scorer = make_scorer(scoring)
-    for train_index, test_index in cv.split(XYs):
-        model.fit(X[train_index], y[train_index])
-        scores.append(        
-            scorer(model, X[test_index], 
-                          y[test_index])
-        )
-    scores = np.asarray(scores)    
-    return scores
-
-def validate_inputs(XYs, X, y):
-    """
-    Validate data inputs to cross-validation procedure.
-    """
-    if not len(XYs) == len(X) == len(y):
-        raise ValueError(
-            "Data arrays are different lengths. Data lengths: XYs={} X={} y={}.".format(
-                len(XYs), X.shape, y.shape
-            )
-        )
-    shapes = [XY.shape for XY in geometry_to_2d(XYs)]
-    if not all(shape == shapes[0] for shape in shapes):
-        raise ValueError(
-            "XYs are different shapes. Coordinate shapes: {}".format(
-                shapes
-            )
-        )
-    X = np.array(X)
-    y = np.array(y)
-        
-    return XYs, X, y

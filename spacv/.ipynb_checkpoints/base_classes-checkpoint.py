@@ -1,5 +1,8 @@
 import numpy as np
-from .utils import convert_geoseries
+import geopandas as gpd
+from .utils import convert_geoseries, convert_geodataframe
+
+import time
 
 class BaseSpatialCV():
     
@@ -11,7 +14,7 @@ class BaseSpatialCV():
         self.buffer_radius = buffer_radius
         
     def split(self, XYs, y=None, groups=None):
-        XYs = convert_geoseries(XYs)
+        XYs = convert_geoseries(XYs).reset_index(drop=True)
 
         minx, miny, maxx, maxy = XYs.total_bounds
         buffer_radius = self.buffer_radius
@@ -22,10 +25,10 @@ class BaseSpatialCV():
                     self.buffer_radius
                 )
             )
-            
         num_samples = XYs.shape[0]
-        indices = np.arange(num_samples)
-        for test_indices, train_excluded in self._iter_test_indices(XYs):    
+        indices = XYs.index.values
+        
+        for test_indices, train_excluded in self._iter_test_indices(XYs):  
             # Exclude the training indices within buffer
             train_excluded = np.concatenate([test_indices, train_excluded])
             train_index = np.setdiff1d(
@@ -38,18 +41,20 @@ class BaseSpatialCV():
                 raise ValueError(
                     "Training set is empty. Try lowering buffer_radius to include more training instances."
                 )
-            test_index = indices[test_indices]          
+            test_index = indices[test_indices]      
             yield train_index, test_index
             
             
-    def _yield_test_indices(self, XYs, test_indices, buffer_radius):
+    def _remove_buffered_indices(self, XYs, test_indices, buffer_radius, geometry_buffer):
         # Remove training points from dead zone buffer
-        if buffer_radius > 0:    
+        if buffer_radius > 0:            
             # Buffer grid and clip training instances
             candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices )]
-            grid_poly_buffer = grid.loc[[grid_id]].buffer(buffer_radius)
-            deadzone_points = gpd.clip(candidate_deadzone, grid_poly_buffer)
-            train_exclude = deadzone_points[~deadzone_points.index.isin(test_indices)].index.values
+            candidate_deadzone = convert_geodataframe(candidate_deadzone)
+            geometry_buffer = convert_geodataframe(geometry_buffer)
+    
+            deadzone_points = gpd.sjoin(candidate_deadzone, geometry_buffer)
+            train_exclude = deadzone_points.loc[~deadzone_points.index.isin(test_indices)].index.values
             return test_indices, train_exclude
 
         else:

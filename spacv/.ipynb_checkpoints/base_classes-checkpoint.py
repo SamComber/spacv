@@ -25,8 +25,9 @@ class BaseSpatialCV():
             
         num_samples = XYs.shape[0]
         indices = np.arange(num_samples)
-        for test_index, train_excluded in self._iter_test_indices(XYs):         
-            # Exclude training instances within buffered region of geometry
+        for test_indices, train_excluded in self._iter_test_indices(XYs):    
+            # Exclude the training indices within buffer
+            train_excluded = np.concatenate([test_indices, train_excluded])
             train_index = np.setdiff1d(
                                 np.union1d(
                                     indices,
@@ -37,5 +38,21 @@ class BaseSpatialCV():
                 raise ValueError(
                     "Training set is empty. Try lowering buffer_radius to include more training instances."
                 )
-            test_index = indices[test_index]          
+            test_index = indices[test_indices]          
             yield train_index, test_index
+            
+            
+    def _yield_test_indices(self, XYs, test_indices, buffer_radius):
+        # Remove training points from dead zone buffer
+        if buffer_radius > 0:    
+            # Buffer grid and clip training instances
+            candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices )]
+            grid_poly_buffer = grid.loc[[grid_id]].buffer(buffer_radius)
+            deadzone_points = gpd.clip(candidate_deadzone, grid_poly_buffer)
+            train_exclude = deadzone_points[~deadzone_points.index.isin(test_indices)].index.values
+            return test_indices, train_exclude
+
+        else:
+            # Yield empty array because no training data removed in dead zone when buffer is zero
+            _ = np.array([], dtype=np.int)
+            return test_indices, _

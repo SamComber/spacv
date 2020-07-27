@@ -1,9 +1,11 @@
+import numbers
 import numpy as np
 import geopandas as gpd
 from sklearn.metrics import make_scorer
 from .base_classes import BaseSpatialCV
 from .grid_builder import construct_blocks, assign_pt_to_grid
 from .utils import geometry_to_2d, convert_geodataframe
+from sklearn.cluster import MiniBatchKMeans
 
 class HBLOCK(BaseSpatialCV):
     """
@@ -14,9 +16,6 @@ class HBLOCK(BaseSpatialCV):
     Parameters
     ----------
     tiles_x : integer
-    
-    
-    
     
     
     """
@@ -70,25 +69,16 @@ class HBLOCK(BaseSpatialCV):
         # Yield test indices and optionally training indices within buffer
         for grid_id in grid_ids:
             test_indices = XYs.loc[XYs['grid_id'] == grid_id ].index.values
-z            
+            
             # Remove empty grids
             if len(test_indices) < 1:
                 continue
             
-            # Remove training points from dead zone buffer
-            if self.buffer_radius > 0:    
-                # Buffer grid and clip training instances
-                candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices )]
-                grid_poly_buffer = grid.loc[[grid_id]].buffer(self.buffer_radius)
-                deadzone_points = gpd.clip(candidate_deadzone, grid_poly_buffer)
-                hblock_train_exclude = deadzone_points[~deadzone_points.index.isin(test_indices)].index.values
-                yield test_indices, hblock_train_exclude
-
-            else:
-                # Yield empty array because no training data removed in dead zone when buffer is zero
-                _ = np.array([], dtype=np.int)
-                yield test_indices, _
-                
+            test_indices, train_exclude = \
+                super()._yield_test_indices(XYs, test_indices, self.buffer_radius)
+            
+            yield test_indices, train_exclude                     
+                    
 class SKCV(BaseSpatialCV):
     
     def __init__(
@@ -117,41 +107,48 @@ class SKCV(BaseSpatialCV):
             km_skcv = MiniBatchKMeans(n_clusters = self.folds)
             labels = km_skcv.fit(XYs_to_2d).labels_
             indices_from_folds = [np.argwhere(labels == i).reshape(-1) 
-                                      for i in range(10)]
+                                      for i in range( self.folds )]
         
-        for fold_indices in indices_from_folds:
-            test_indices = np.array([fold_indices])
-            # Remove training points from dead zone buffer
-            if self.buffer_radius > 0:    
-                # Buffer fold and clip training instances inside dead zone
-                candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices)]
-                fold_convex_hull = gpd.GeoSeries(XYs.loc[test_indices].unary_union.convex_hull).buffer(self.buffer_radius)
-                deadzone_points = gpd.clip(candidate_deadzone, fold_convex_hull)
-                hblock_train_exclude = deadzone_points[~deadzone_points.index.isin(test_indices)].index.values
-                yield test_indices, hblock_train_exclude
-
+        for fold_indices in indices_from_folds:   
+            
+            if len(XYs) == self.folds:
+                test_indices = np.array([fold_indices])
             else:
-                # Yield empty array because no training data removed in dead zone when buffer is zero
-                _ = np.array([], dtype=np.int)
-                yield test_indices, _
+                test_indices = np.array(fold_indices)
+            
+            test_indices, train_exclude = \
+                super()._yield_test_indices(XYs, test_indices, self.buffer_radius)
+            
+            yield test_indices, train_exclude
+              
                 
 class RepeatSKCV(SKCV):
     
     def __init__(
         self,
-        tiles_x=5,
-        tiles_y=5,
-        method='unique',
-        buffer_radius=0,
-        shuffle=False,
-        direction='diagonal',
-        n_groups=5,
-        data=None,
-        n_sims=10
+        n_repeats=10,
+        folds=10,
+        **kwargs
     ):
+        if not isinstance(n_repeats, numbers.Integral):
+            raise ValueError("Number of repetitions must be of Integral type.")
+
+        if n_repeats <= 0:
+            raise ValueError("Number of repetitions must be greater than 0.")
+        cv = SKCV
+        self.cv = cv
+        self.n_repeats = n_repeats
+        self.folds = folds
+        self.kwargs = kwargs
+                
+    def split(self, XYs):
+        n_repeats = self.n_repeats
+        for idx in range(n_repeats):
+            cv = self.cv(self.folds, **self.kwargs)
+            
+            for train_index, test_index in cv.split(XYs):
+                yield train_index, test_index
         
-        super().__init__(tiles_x, tiles_y, method, buffer_radius, 
-                         shuffle, direction, n_groups, data, n_sims)
                
 def cross_val_score(
     model,

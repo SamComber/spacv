@@ -10,7 +10,7 @@ class BaseSpatialCV():
         self.random_state = random_state
         self.buffer_radius = buffer_radius
         
-    def split(self, XYs):
+    def split(self, XYs, y=None, groups=None):
         XYs = convert_geoseries(XYs)
 
         minx, miny, maxx, maxy = XYs.total_bounds

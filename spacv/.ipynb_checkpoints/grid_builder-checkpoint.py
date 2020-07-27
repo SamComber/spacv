@@ -2,7 +2,6 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon
 from sklearn.neighbors import BallTree
-
 from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
 
 def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
@@ -143,7 +142,8 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10, distance_met
     """
     if data is None:
         raise ValueError(
-            'Data parameter must be supplied to spacv.HBLOCK() to compute fold dissimilarity.'
+            'Data must be supplied to spacv.HBLOCK() for computing fold' 
+            'dissimilarity when using optimized_random method.'
         )
     
     data = convert_numpy(data)
@@ -160,18 +160,15 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10, distance_met
         Xbar = X.mean(axis=0)
         X_grid_means = np.array([ X[v].mean(axis=0) 
                                      for k, v in folds.groupby('grid_id').groups.items()])
-
         # Calculate dissimilarity between folds and mean values across all data 
         sse = sum(
             sum((X_grid_means - Xbar)**2)
         )
-
         optimized_grid.update( {sim : {'sse': sse, 'grid_id': grid_id}} )
 
     # Take the optimized grid as one that minimises dissimilarity between folds
     minimised_obj = min(optimized_grid, key = lambda x : optimized_grid[x]['sse'])
     grid_id = optimized_grid[minimised_obj]['grid_id']
-
     return grid_id
 
 
@@ -179,14 +176,11 @@ def assign_pt_to_grid(XYs, grid, distance_metric='euclidean'):
     """
     Spatial join pts to grids. Reassign border points to nearest grid based on centroid distance. 
     """
-    # Sjoin pts to grid polygons
-    XYs = convert_geodataframe(XYs)
-    
+    XYs = convert_geodataframe(XYs)    
     # Equate spatial reference systems if defined 
     if not grid.crs == XYs.crs:
         grid.crs = XYs.crs        
     XYs = gpd.sjoin(XYs, grid, how='left' , op='within')
-
     # In rare cases, points will sit at the border separating two grids
     if XYs['grid_id'].isna().any():
         # Find border pts and assign to nearest grid centroid

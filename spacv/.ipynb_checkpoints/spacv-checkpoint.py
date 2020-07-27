@@ -70,7 +70,7 @@ class HBLOCK(BaseSpatialCV):
         # Yield test indices and optionally training indices within buffer
         for grid_id in grid_ids:
             test_indices = XYs.loc[XYs['grid_id'] == grid_id ].index.values
-
+            
             # Remove empty grids
             if len(test_indices) < 1:
                 continue
@@ -116,18 +116,17 @@ class SKCV(BaseSpatialCV):
             XYs_to_2d = geometry_to_2d(XYs)
             km_skcv = MiniBatchKMeans(n_clusters = self.folds)
             labels = km_skcv.fit(XYs_to_2d).labels_
-            indices_from_folds = [np.argwhere(labels == i).reshape(-1) for i in range(10)]
+            indices_from_folds = [np.argwhere(labels == i).reshape(-1) 
+                                      for i in range(10)]
         
         for fold_indices in indices_from_folds:
             test_indices = np.array([fold_indices])
-
             # Remove training points from dead zone buffer
             if self.buffer_radius > 0:    
-                # Buffer fold and clip training instances
+                # Buffer fold and clip training instances inside dead zone
                 candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices)]
                 fold_convex_hull = gpd.GeoSeries(XYs.loc[test_indices].unary_union.convex_hull).buffer(self.buffer_radius)
                 deadzone_points = gpd.clip(candidate_deadzone, fold_convex_hull)
-                                
                 hblock_train_exclude = deadzone_points[~deadzone_points.index.isin(test_indices)].index.values
                 yield test_indices, hblock_train_exclude
 

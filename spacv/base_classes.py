@@ -18,7 +18,7 @@ class BaseSpatialCV():
         
         if buffer_radius > maxx-minx or buffer_radius > maxy-miny:
             raise ValueError(
-                "Buffer radius too large and excludes all points. Given {}.".format(
+                "buffer_radius too large and excludes all points. Given {}.".format(
                     self.buffer_radius
                 )
             )
@@ -26,7 +26,6 @@ class BaseSpatialCV():
         num_samples = XYs.shape[0]
         indices = np.arange(num_samples)
         for test_index, train_excluded in self._iter_test_indices(XYs):         
-            train_excluded = np.concatenate([test_index, train_excluded])
             # Exclude training instances within buffered region of geometry
             train_index = np.setdiff1d(
                                 np.union1d(

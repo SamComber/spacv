@@ -1,9 +1,12 @@
-import seaborn as sns
 from sklearn.neighbors import BallTree
 from scipy.spatial.distance import pdist, squareform
 
-sns.set_style("whitegrid") # pretty plots
-
+try:
+    import seaborn as sns
+    sns.set_style("whitegrid") # pretty plots
+except ModuleNotFoundError:
+    pass
+    
 # ADD: create nicer plots, they're horrible
 
 def variogram_at_lag(XYs, y, lag, bw):
@@ -65,7 +68,8 @@ def aoa(new_data,
         training_data, 
         model=None, 
         thres=0.95,
-        fold_indices=None
+        fold_indices=None,
+        distance_metric='euclidean'
        ):
     """
     Area of Applicability (AOA) measure for spatial prediction models from
@@ -80,7 +84,7 @@ def aoa(new_data,
     new_data = (new_data - np.mean(new_data)) / np.std(new_data)
 
     # Calculate nearest training instance to test data, return Euclidean distances
-    tree = BallTree(training_data, metric='euclidean') 
+    tree = BallTree(training_data, metric=distance_metric) 
     mindist, _ = tree.query(new_data, k=1, return_distance=True)
 
     # Build matrix of pairwise distances 

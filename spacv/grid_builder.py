@@ -43,9 +43,10 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
     elif method == 'optimized_random':
         grid['grid_id'] = assign_optimized_random(grid, XYs, kwargs.get('data'), 
                                                              kwargs.get('n_groups'),
-                                                             kwargs.get('n_sims'))
+                                                             kwargs.get('n_sims'), 
+                                                             kwargs.get('distance_metric'))
     else:
-        raise ValueError('Method not recognised. Choose between: unique, systematic, random or optimized_random')
+        raise ValueError('Method not recognised. Choose between: unique, systematic, random or optimized_random.')
     
     return grid
     
@@ -106,9 +107,12 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
     if direction == 'diagonal':
         diags = [sys_matrix.diagonal(i) 
                      for i in range(width-1, -length,-1)]
-    if direction == 'anti':
+    elif direction == 'anti':
         diags = [sys_matrix[::-1,:].diagonal(i) 
                      for i in range(-length+1, width)]
+    else:
+        raise ValueError('Direction of systematic pattern not recognised. Choose between: diagonal or anti.')
+
     # Construct lookup between diagonal element indices and grid dataframe
     systematic_lookup = dict([
                             tuple([element, key]) 
@@ -133,7 +137,7 @@ def assign_randomized(grid, n_groups=5):
     
     return grid_id
 
-def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10):
+def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10, distance_metric='euclidean'):
     """
     Set grid pattern as optimized random by taking grid IDs that minimize dissimilarity between folds.
     """
@@ -147,7 +151,7 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10):
     # Build dictionary of grid IDs with paired SSR for dissimilarity 
     optimized_grid = {}
     for sim in range(n_sims):
-        grid_id = assign_randomized(grid, n_groups)
+        grid_id = assign_randomized(grid, n_groups, distance_metric)
         grid['grid_id'] = grid_id
         folds = assign_pt_to_grid(XYs, grid)
 
@@ -171,25 +175,27 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10):
     return grid_id
 
 
-def assign_pt_to_grid(XYs, grid):
+def assign_pt_to_grid(XYs, grid, distance_metric='euclidean'):
     """
     Spatial join pts to grids. Reassign border points to nearest grid based on centroid distance. 
     """
     # Sjoin pts to grid polygons
     XYs = convert_geodataframe(XYs)
+    
+    # Equate spatial reference systems if defined 
+    if not grid.crs == XYs.crs:
+        grid.crs = XYs.crs        
     XYs = gpd.sjoin(XYs, grid, how='left' , op='within')
 
     # In rare cases, points will sit at the border separating two grids
     if XYs['grid_id'].isna().any():
+        # Find border pts and assign to nearest grid centroid
         grid_centroid = grid.geometry.centroid
         grid_centroid = geometry_to_2d(grid_centroid)
-
-        # Find border pts
         border_pt_index = XYs['grid_id'].isna()
         border_pts = XYs[border_pt_index].geometry
-        border_pts = geometry_to_2d(border_pts)
-        
-        tree = BallTree(grid_centroid, metric='euclidean') 
+        border_pts = geometry_to_2d(border_pts)        
+        tree = BallTree(grid_centroid, metric=distance_metric) 
         grid_id  = tree.query(border_pts, k=1, return_distance=False)
         
         # Update border pt grid IDs

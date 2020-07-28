@@ -1,5 +1,6 @@
 from sklearn.neighbors import BallTree
 from scipy.spatial.distance import pdist, squareform
+from scipy.optimize import curve_fit
 
 try:
     import seaborn as sns
@@ -8,6 +9,7 @@ except ModuleNotFoundError:
     pass
     
 # ADD: create nicer plots, they're horrible
+
 def variogram_at_lag(XYs, y, lags, bw):
     
     XYs = geometry_to_2d(XYs)
@@ -45,24 +47,53 @@ def compute_semivariance(y, mask, lag, bw):
     
     return semivariance
 
-def plot_variogram(XYs, y, lags, bw, **kwargs):
-    
-    semivariances = [variogram_at_lag(XYs, y, lag, bw) for lag in lags] 
-    
-    figsize = kwargs.pop('figsize', (6,4))
-    
-    fig, ax = plt.subplots(1, figsize = figsize)
-    ax.plot(lags, semivariances, '.-')
-    ax.spines['bottom'].set_linewidth(2)
-    ax.spines['left'].set_linewidth(2)
-    ax.spines['left'].set_edgecolor('black')
-    ax.spines['bottom'].set_edgecolor('black')
-    
-    ax.set_ylabel('Semivariance')
-    ax.set_xlabel('Lags')
-    
-    return fig, ax
 
+def variogram(func):
+    def send_params(*params):
+        new_args = params[1:]
+        mapping = map(lambda h: func(h, *new_args), params[0])
+        return np.fromiter(mapping, dtype=float)
+
+    return send_params
+
+@variogram
+def spherical(h, r, c0, b=0):
+    a = r / 1.
+    if h <= r:
+        return b + c0 * ((1.5 * (h / a)) - (0.5 * ((h / a) ** 3.0)))
+    else:
+        return b + c0
+
+def plot_autocorrelation_ranges(XYs, X, lags, bw):
+    
+    ranges = []
+
+    for col in X.values.T:
+
+        semis = variogram_at_lag(XYs, col, lags, bw)
+        sv,h = semis[:,0], semis[:,1]
+        start_params = [np.nanmax(h), np.nanmax(sv)]
+        bounds = (0, start_params)
+        cof, _ = curve_fit(spherical, h, sv, sigma=None,
+                             p0 = start_params, bounds=bounds,
+                             method='trf')
+        effective_range = cof[0]
+
+        ranges.append(effective_range)
+
+    x_pos = [i for i in range(len(ranges))]
+    x_labs = X.columns
+
+    f, ax = plt.subplots(1, figsize=(8,6))
+    ax.bar(x_labs, ranges, color='skyblue', alpha=.7)
+    ax.set_ylabel("Ranges (m)")
+    ax.set_xlabel("Variables")
+    median_eff_range = np.median(ranges)
+    ax.text(0, median_eff_range + median_eff_range / 100 * 10, '{:.3f}m'.format(median_range_val), color='red', size=14 )
+    ax.axhline(median_eff_range,  color='red' , linestyle='--')
+    plt.show()
+    
+    
 def aoa(new_data, 
         training_data, 
         model=None, 

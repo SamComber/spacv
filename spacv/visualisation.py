@@ -8,41 +8,40 @@ except ModuleNotFoundError:
     pass
     
 # ADD: create nicer plots, they're horrible
-
-def variogram_at_lag(XYs, y, lag, bw):
-    """
-    Return semivariance values for defined lags.
+def variogram_at_lag(XYs, y, lags, bw):
     
-    Parameters
-    ----------
-    XYs : Geoseries series
-        Series containing X and Y coordinates.
-    y : array or list
-        Array containing response variables.
-    lag : integer
-        Distance lag to obtain semivariances.
-    bw : integer or float
-        Bandwidth, plus and minus to calculate semivariance. 
-        
-    Returns
-    -------
-    semivariances : Array of floats
-        Array of semivariances for each lag
-    """
-    
-    XYs = geometry_to_2d(XYs.geometry)
+    XYs = geometry_to_2d(XYs)
     y = np.asarray(y)
-
+    
     paired_distances = pdist(XYs)
     pd_m = squareform(paired_distances)
-    n = pd_m.shape[0]
 
-    ssvs = []
-    for i in range(n):
-        for j in range(i+1, n):
-            if ( pd_m[i,j] >= lag-bw) and ( pd_m[i,j] <= lag+bw):
-                ssvs.append( (y[i] - y[j])**2 )
-    semivariance = np.sum(ssvs) / (2.0 * len(ssvs) )
+    semivariances = []
+    
+    for lag in lags:
+        lower = pd_m >= lag-bw
+        upper = pd_m <= lag+bw
+        mask = np.logical_and(lower, upper)
+
+        semivariances.append(compute_semivariance(y, mask, lag, bw))
+        
+    return np.c_[semivariances, lags].T
+
+def compute_semivariance(y, mask, lag, bw):
+    semis, counts = [], []
+    for i in range( len(y) ):
+        yi = np.array([y[i]])
+        mask_i = mask[i,:]
+        mask_i[:i] = False
+        yj = y[mask_i]
+        ss = (yi - yj)**2 
+    
+        filter_empty =  ss > 0. 
+        if len(ss[filter_empty]) > 0:
+            counts.append( len(ss[filter_empty]))
+            semis.append(ss[filter_empty])
+    
+    semivariance = np.sum( np.concatenate(semis)) / (2.0 * sum(counts) )
     
     return semivariance
 

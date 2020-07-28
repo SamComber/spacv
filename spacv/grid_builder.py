@@ -159,7 +159,7 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10, distance_met
         X = (data - data.mean(axis=0)) / data.std(axis=0)
         Xbar = X.mean(axis=0)
         X_grid_means = np.array([ X[v].mean(axis=0) 
-                                     for k, v in folds.groupby('grid_id').groups.items()])
+                                     for _, v in folds.groupby('grid_id').groups.items()])
         # Calculate dissimilarity between folds and mean values across all data 
         sse = sum(
             sum((X_grid_means - Xbar)**2)
@@ -188,11 +188,11 @@ def assign_pt_to_grid(XYs, grid, distance_metric='euclidean'):
         grid_centroid = geometry_to_2d(grid_centroid)
         border_pt_index = XYs['grid_id'].isna()
         border_pts = XYs[border_pt_index].geometry
-        border_pts = geometry_to_2d(border_pts)        
-        tree = BallTree(grid_centroid, metric=distance_metric) 
-        grid_id  = tree.query(border_pts, k=1, return_distance=False)
+        border_pts = geometry_to_2d(border_pts)      
         
         # Update border pt grid IDs
+        tree = BallTree(grid_centroid, metric=distance_metric) 
+        grid_id  = tree.query(border_pts, k=1, return_distance=False)
         XYs.loc[border_pt_index, 'grid_id'] = grid_id
         XYs = XYs.drop(columns=['index_right'])
 

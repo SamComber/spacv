@@ -1,7 +1,6 @@
 import numbers
 import numpy as np
 import geopandas as gpd
-from sklearn.metrics import make_scorer
 from .base_classes import BaseSpatialCV
 from .grid_builder import construct_blocks, assign_pt_to_grid
 from .utils import geometry_to_2d, convert_geodataframe
@@ -67,14 +66,16 @@ class HBLOCK(BaseSpatialCV):
             check_random_state(self.random_state).shuffle(grid_ids)
 
         # Yield test indices and optionally training indices within buffer
+                
         for grid_id in grid_ids:
             test_indices = XYs.loc[XYs['grid_id'] == grid_id ].index.values
             
             # Remove empty grids
             if len(test_indices) < 1:
                 continue
-            
+                        
             grid_poly_buffer = grid.loc[[grid_id]].buffer(self.buffer_radius)
+        
             test_indices, train_exclude = \
                 super()._remove_buffered_indices(XYs, test_indices, 
                                             self.buffer_radius, grid_poly_buffer)
@@ -103,6 +104,7 @@ class SKCV(BaseSpatialCV):
         if len(XYs) == self.folds:
             num_samples = XYs.shape[0]
             indices_from_folds = np.arange(num_samples)
+            
         else:
             # Partion XYs space into folds
             XYs_to_2d = geometry_to_2d(XYs)
@@ -121,6 +123,9 @@ class SKCV(BaseSpatialCV):
                 super()._remove_buffered_indices(XYs, test_indices, 
                                             self.buffer_radius, fold_convex_hull)
             yield test_indices, train_exclude
+            
+    def __str__(self):
+        return 'SKCV(name='+self.buffer_radius+', age='+str(self.folds)+ ')'
               
                 
 class RepeatSKCV(SKCV):
@@ -146,7 +151,6 @@ class RepeatSKCV(SKCV):
         n_repeats = self.n_repeats
         for idx in range(n_repeats):
             cv = self.cv(self.folds, **self.kwargs)
-            
             for train_index, test_index in cv.split(XYs):
                 yield train_index, test_index
         

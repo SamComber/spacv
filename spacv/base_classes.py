@@ -49,9 +49,9 @@ class BaseSpatialCV():
             # Buffer grid and clip training instances
             candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices )]
             candidate_deadzone = convert_geodataframe(candidate_deadzone)
-            geometry_buffer = convert_geodataframe(geometry_buffer)
-    
+            geometry_buffer = convert_geodataframe(geometry_buffer)    
             deadzone_points = gpd.sjoin(candidate_deadzone, geometry_buffer)
+        
             train_exclude = deadzone_points.loc[~deadzone_points.index.isin(test_indices)].index.values
             return test_indices, train_exclude
 
@@ -59,3 +59,5 @@ class BaseSpatialCV():
             # Yield empty array because no training data removed in dead zone when buffer is zero
             _ = np.array([], dtype=np.int)
             return test_indices, _
+
+        

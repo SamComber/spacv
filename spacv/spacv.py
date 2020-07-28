@@ -154,3 +154,15 @@ class RepeatSKCV(SKCV):
             for train_index, test_index in cv.split(XYs):
                 yield train_index, test_index
         
+def compute_gcv(y, X):
+    
+    y = y.reshape(-1, 1)
+    ols = spreg.ols.OLS(y, X)
+    
+    hat = X.dot(np.linalg.inv(X.T.dot(X)).dot(X.T))
+    mse = np.mean( (y - ols.predy)**2)
+    n = len(y)
+    h_value = np.trace( np.identity(n) - hat ) / n
+    gcv = mse / h_value**2
+
+    return gcv

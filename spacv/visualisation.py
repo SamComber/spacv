@@ -11,11 +11,25 @@ try:
 except ModuleNotFoundError:
     pass
     
-# ADD: create nicer plots, they're horrible
-
 def variogram_at_lag(XYs, y, lags, bw):
     """
+    Return semivariance values for defined lags.
     
+    Parameters
+    ----------
+    XYs : Geoseries series
+        Series containing X and Y coordinates.
+    y : array or list
+        Array (N,) containing response variables.
+    lags : array
+        Array of distance lags in metres to obtain semivariances.
+    bw : integer or float
+        Bandwidth, plus and minus lags to calculate semivariance. 
+        
+    Returns
+    -------
+    semivariances : Array of floats
+        Array of semivariances at defined lag points for given variable.
     """
     XYs = geometry_to_2d(XYs)
     y = np.asarray(y)
@@ -28,12 +42,12 @@ def variogram_at_lag(XYs, y, lags, bw):
         lower = pd_m >= lag-bw
         upper = pd_m <= lag+bw
         mask = np.logical_and(lower, upper)
-        semivariances.append(compute_semivariance(y, mask, lag, bw))
+        semivariances.append(compute_semivariance(y, mask, bw))
     return np.c_[semivariances, lags].T
 
-def compute_semivariance(y, mask, lag, bw):
+def compute_semivariance(y, mask, bw):
     """
-    
+    Calculate semivariance for masked elements.
     """
     semis, counts = [], []
     for i in range( len(y) ):
@@ -42,16 +56,12 @@ def compute_semivariance(y, mask, lag, bw):
         mask_i[:i] = False
         yj = y[mask_i]
         ss = (yi - yj)**2 
-    
         filter_empty =  ss > 0. 
         if len(ss[filter_empty]) > 0:
             counts.append( len(ss[filter_empty]))
             semis.append(ss[filter_empty])
-    
     semivariance = np.sum( np.concatenate(semis)) / (2.0 * sum(counts) )
-    
     return semivariance
-
 
 def variogram(func):
     def send_params(*params):
@@ -62,19 +72,62 @@ def variogram(func):
     return send_params
 
 @variogram
-def spherical(h, r, c0, b=0):
+def spherical(h, r, sill, nugget=0):
+    """
+    Spherical variogram model function. Calculates the
+    dependent variable for a given lag (h). The nugget (b) defaults to be 0.
+    
+    Parameters
+    ----------
+    h : float
+        The lag at which the dependent variable is calculated at.
+    r : float
+        Effective range of autocorrelation.
+    sill : float
+        The sill of the variogram, where the semivariance begins to saturate. 
+    nugget : float, default=0
+        The nugget of the variogram. This is the value of independent
+        variable at the distance of zero. 
+    Returns
+    -------
+    gamma : numpy float
+        Coefficients that describe effective range of spatial autocorrelation
+    """
     a = r / 1.
     if h <= r:
-        return b + c0 * ((1.5 * (h / a)) - (0.5 * ((h / a) ** 3.0)))
+        return nugget + sill * ((1.5 * (h / a)) - (0.5 * ((h / a) ** 3.0)))
     else:
-        return b + c0
-
-def plot_autocorrelation_ranges(XYs, X, lags, bw):
+        return nugget + sill
     
+def plot_autocorrelation_ranges(XYs, X, lags, bw):
+    """
+    Plot spatial autocorrelation ranges for input covariates. Suggested 
+    block size based on median autocorrelation range across the data is
+    also reported by horiztonal line.
+    
+    Parameters
+    ----------
+    XYs : Geoseries series
+        Series containing X and Y coordinates.
+    X : array or dataframe
+        Dataframeof covariates to calculate autocorrelation ranges over.
+    y : array or list
+        Array (N,) containing response variables.
+    lags : array
+        Array of distance lags in metres to obtain semivariances.
+    bw : integer or float
+        Bandwidth, plus and minus lags to calculate semivariance. 
+    
+    Returns
+    -------
+    fig : matplotlip Figure instance
+        Figure of spatial weight network.
+    ax : matplotlib Axes instance
+        Axes in which the figure is plotted. 
+    """
     ranges = []
-
     for col in X.values.T:
-
+        # Fit spherical model to extract effective range coefficient
         semis = variogram_at_lag(XYs, col, lags, bw)
         sv,h = semis[:,0], semis[:,1]
         start_params = [np.nanmax(h), np.nanmax(sv)]
@@ -83,7 +136,6 @@ def plot_autocorrelation_ranges(XYs, X, lags, bw):
                              p0 = start_params, bounds=bounds,
                              method='trf')
         effective_range = cof[0]
-
         ranges.append(effective_range)
 
     x_pos = [i for i in range(len(ranges))]
@@ -96,8 +148,8 @@ def plot_autocorrelation_ranges(XYs, X, lags, bw):
     median_eff_range = np.median(ranges)
     ax.text(0, median_eff_range + median_eff_range / 100 * 10, '{:.3f}m'.format(median_eff_range), color='red', size=14 )
     ax.axhline(median_eff_range,  color='red' , linestyle='--')
-    plt.show()
     
+    return f, ax
     
 def aoa(new_data, 
         training_data, 
@@ -108,7 +160,25 @@ def aoa(new_data,
        ):
     """
     Area of Applicability (AOA) measure for spatial prediction models from
-    Meyer and Pebesma (2020) https://arxiv.org/abs/2005.07939
+    Meyer and Pebesma (2020). 
+    
+    Parameters
+    ----------
+    new_data : Geoseries
+        
+    training_data
+    
+    thres : default=0.95
+    
+    fold_indices :
+    
+    distance_metric : string, default='euclidean'
+    
+    Returns
+    -------
+    DIs
+    
+    masked_result
     
     """
     if len(training_data) <= 1:
@@ -161,7 +231,17 @@ def aoa(new_data,
     return DIs, masked_result
 
 def plot_aoa(new_data, training_data, columns, figsize, **kwargs):
+    """
     
+    
+    
+    Returns
+    -------
+    fig : matplotlip Figure instance
+        Figure of spatial weight network.
+    ax : matplotlib Axes instance
+        Axes in which the figure is plotted. 
+    """
     # Pop geometry for use later in plotting
     new_data = new_data.copy()
     new_data_geometry = new_data.pop('geometry')

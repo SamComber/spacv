@@ -25,3 +25,6 @@ def convert_geodataframe(XYs):
 def convert_numpy(X):
     if isinstance(X, (pd.DataFrame, pd.Series, gpd.GeoDataFrame)):
         return X.values
+    else:
+        return X
+    

@@ -14,8 +14,27 @@ class HBLOCK(BaseSpatialCV):
     
     Parameters
     ----------
-    tiles_x : integer
+    tiles_x : integer, default=5
+        Number of grid tiles in the West-East direction.
+    tiles_y : integer, default=5
+        Number of grid tiles in the North-South direction.
+    shape : string, default='square'
+        Specify 
+    method : string, default='unique'
     
+    buffer_radius : integer, default=0
+    
+    shuffle : boolean, default=False
+    
+    direction : string, default='diagonal'
+    
+    n_groups : integer, default=5
+    
+    data : dataframe
+    
+    n_sims : integer, default=10
+    
+    distance_metric : string, default='euclidean'
     
     """
     def __init__(
@@ -59,11 +78,11 @@ class HBLOCK(BaseSpatialCV):
     
         # Convert to GDF to use Geopandas functions
         XYs = gpd.GeoDataFrame(({'geometry':XYs}))
-        
+                            
         # Assign pts to grids
         XYs = assign_pt_to_grid(XYs, grid, self.distance_metric)
         grid_ids = np.unique(grid.grid_id)
-        
+                
         # Shuffle grid order 
         if self.shuffle:
             check_random_state(self.random_state).shuffle(grid_ids)
@@ -81,7 +100,18 @@ class HBLOCK(BaseSpatialCV):
             yield test_indices, train_exclude                     
                     
 class SKCV(BaseSpatialCV):
+    """
+    H-Blocking spatial cross-validator.
     
+    Yields indices to split data into training and test sets.
+    
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    
+    """
     def __init__(
         self,
         folds=10,
@@ -99,8 +129,10 @@ class SKCV(BaseSpatialCV):
                     len(XYs), self.folds
                 )
             )
+        sloo = len(XYs) == self.folds
+            
         # If K = N, SLOO
-        if len(XYs) == self.folds:
+        if sloo:
             num_samples = XYs.shape[0]
             indices_from_folds = np.arange(num_samples)
             
@@ -113,7 +145,7 @@ class SKCV(BaseSpatialCV):
                                       for i in range( self.folds )]
         
         for fold_indices in indices_from_folds:   
-            if len(XYs) == self.folds:
+            if sloo:
                 test_indices = np.array([fold_indices])
             else:
                 test_indices = np.array(fold_indices)
@@ -124,6 +156,17 @@ class SKCV(BaseSpatialCV):
             yield test_indices, train_exclude
                 
 class RepeatSKCV(SKCV):
+    """
+    
+    Parameters
+    ----------
+    
+    n_repeats
+    
+    n_folds
+    
+    
+    """
     
     def __init__(
         self,
@@ -149,15 +192,18 @@ class RepeatSKCV(SKCV):
                 yield train_index, test_index
         
 def compute_gcv(y, X):
+    """
+    Compute generalized cross-validation (GCV) for i.i.d data. GSV
+    is an approximation of leave-one-out (LOO) CV.
     
+    
+    ADD: accomodate space.
+    """
     y = y.reshape(-1, 1)
     ols = spreg.ols.OLS(y, X)
     hat = X.dot(np.linalg.inv(X.T.dot(X)).dot(X.T))
     mse = np.mean( (y - ols.predy)**2)
     n = len(y)
-    
-     # MM w/ spatial weights
-    
     h_value = np.trace( np.identity(n) - hat ) / n
     gcv = mse / h_value**2
 

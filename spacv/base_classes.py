@@ -3,7 +3,9 @@ import geopandas as gpd
 from .utils import convert_geoseries, convert_geodataframe
 
 class BaseSpatialCV():
-    
+    """
+    Base class for partitioning-based spatial cross-validation approaches.
+    """
     def __init__(
         self,
         random_state = None
@@ -44,14 +46,13 @@ class BaseSpatialCV():
     def _remove_buffered_indices(self, XYs, test_indices, buffer_radius, geometry_buffer):
         # Remove training points from dead zone buffer
         if buffer_radius > 0:            
-            # Buffer grid and clip training instances
-            candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices )]
+            # Buffer grid and clip training instances            
+            candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices )]            
             candidate_deadzone = convert_geodataframe(candidate_deadzone)
-            geometry_buffer = convert_geodataframe(geometry_buffer)    
+            geometry_buffer = convert_geodataframe(geometry_buffer)  
             deadzone_points = gpd.sjoin(candidate_deadzone, geometry_buffer)
             train_exclude = deadzone_points.loc[~deadzone_points.index.isin(test_indices)].index.values
             return test_indices, train_exclude
-
         else:
             # Yield empty array because no training data removed in dead zone when buffer is zero
             _ = np.array([], dtype=np.int)

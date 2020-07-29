@@ -51,7 +51,9 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', **k
     return grid
     
 def construct_grid(XYs, tiles_x, tiles_y, shape):
-
+    """
+    Choose grid shape to build across bounds of study area.
+    """
     if shape == 'square':
         return construct_square_grid(XYs, tiles_x, tiles_y)
     if shape == 'hex':
@@ -60,7 +62,7 @@ def construct_grid(XYs, tiles_x, tiles_y, shape):
 
 def construct_square_grid(XYs, tiles_x, tiles_y):
     """
-    Build grid over study area with user-defined number of tiles.
+    Build square grid over study area with user-defined number of tiles.
     
     Parameters
     ----------
@@ -102,36 +104,52 @@ def construct_square_grid(XYs, tiles_x, tiles_y):
             
     return grid    
 
-def construct_hex_grid(XYs, tiles_x, tiles_y):
 
+def construct_hex_grid(XYs, tiles_x, tiles_y):
+    """
+    Build hexagon grid over study area with user-defined number of tiles.
+    
+    Parameters
+    ----------
+    XYs : Geoseries series
+        Series containing X and Y coordinates.
+    tiles_x : integer
+        Integer declaring number of tiles along X axis.
+    tiles_y : integer
+        Integer declaring number of tiles along Y axis.
+        
+    Returns
+    -------
+    grid : GeoDataFrame Dataframe
+        GeoDataFrame with hexagon grids as shapely polygons.
+    
+    """
     minx, miny, maxx, maxy = XYs.total_bounds
     padding = 1.e-9 * (maxx - minx)
     minx -= padding
     maxx += padding
-    sx = (maxx - minx) / tiles_x
-    sy = (maxy - miny) / tiles_y
+    dx = (maxx - minx) / tiles_x
+    dy = (maxy - miny) / tiles_y
 
-    nx1 = tiles_x + 1
-    ny1 = tiles_y + 1
-    nx2 = tiles_x
-    ny2 = tiles_y
-    n = nx1 * ny1 + nx2 * ny2
+    tiles_x1 = tiles_x + 1
+    tiles_y1 = tiles_y + 1
+    n = tiles_x1 * tiles_y1 + tiles_x * tiles_y
 
     offsets = np.zeros((n, 2), float)
-    offsets[:nx1 * ny1, 0] = np.repeat(np.arange(nx1), ny1)
-    offsets[:nx1 * ny1, 1] = np.tile(np.arange(ny1), nx1)
-    offsets[nx1 * ny1:, 0] = np.repeat(np.arange(nx2) + 0.5, ny2)
-    offsets[nx1 * ny1:, 1] = np.tile(np.arange(ny2), nx2) + 0.5
-    offsets[:, 0] *= sx
-    offsets[:, 1] *= sy
+    offsets[:tiles_x1 * tiles_y1, 0] = np.repeat(np.arange(tiles_x1), tiles_y1)
+    offsets[:tiles_x1 * tiles_y1, 1] = np.tile(np.arange(tiles_y1), tiles_x1)
+    offsets[tiles_x1 * tiles_y1:, 0] = np.repeat(np.arange(tiles_x) + 0.5, tiles_y)
+    offsets[tiles_x1 * tiles_y1:, 1] = np.tile(np.arange(tiles_y), tiles_x) + 0.5
+    
+    offsets[:, 0] *= dx
+    offsets[:, 1] *= dy
     offsets[:, 0] += minx
     offsets[:, 1] += miny
 
-    polygon = [sx, sy / 3] * np.array(
+    polygon = [dx, dy / 3] * np.array(
         [[.5, -.5], [.5, .5], [0., 1.], [-.5, .5], [-.5, -.5], [0., -1.]])
 
     collection = PolyCollection([polygon],offsets=offsets)
-
     hex_polys = collection.get_paths()[0].vertices
     hex_array = []
     for xs,ys in collection.get_offsets():
@@ -193,7 +211,7 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10, distance_met
     if data is None:
         raise ValueError(
             'Data must be supplied to spacv.HBLOCK() for computing fold' 
-            'dissimilarity when using optimized_random method.'
+            ' dissimilarity when using optimized_random method.'
         )
     
     data = convert_numpy(data)
@@ -201,9 +219,9 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10, distance_met
     # Build dictionary of grid IDs with paired SSR for dissimilarity 
     optimized_grid = {}
     for sim in range(n_sims):
-        grid_id = assign_randomized(grid, n_groups, distance_metric)
+        grid_id = assign_randomized(grid, n_groups)
         grid['grid_id'] = grid_id
-        folds = assign_pt_to_grid(XYs, grid)
+        folds = assign_pt_to_grid(XYs, grid, distance_metric)
 
         # Scale for SSR calculation
         X = (data - data.mean(axis=0)) / data.std(axis=0)
@@ -226,13 +244,16 @@ def assign_pt_to_grid(XYs, grid, distance_metric='euclidean'):
     """
     Spatial join pts to grids. Reassign border points to nearest grid based on centroid distance. 
     """
-    XYs = convert_geodataframe(XYs)    
+    XYs = convert_geodataframe(XYs)   
+    
     # Equate spatial reference systems if defined 
     if not grid.crs == XYs.crs:
         grid.crs = XYs.crs        
-    XYs = gpd.sjoin(XYs, grid, how='left' , op='within')
+    XYs = gpd.sjoin(XYs, grid, how='left' , op='within')[['geometry', 'grid_id']]
+        
     # In rare cases, points will sit at the border separating two grids
     if XYs['grid_id'].isna().any():
+        
         # Find border pts and assign to nearest grid centroid
         grid_centroid = grid.geometry.centroid
         grid_centroid = geometry_to_2d(grid_centroid)
@@ -244,6 +265,6 @@ def assign_pt_to_grid(XYs, grid, distance_metric='euclidean'):
         tree = BallTree(grid_centroid, metric=distance_metric) 
         grid_id  = tree.query(border_pts, k=1, return_distance=False)
         XYs.loc[border_pt_index, 'grid_id'] = grid_id
-        XYs = XYs.drop(columns=['index_right'])
+#         XYs = XYs.drop(columns=['index_right'])
 
     return XYs

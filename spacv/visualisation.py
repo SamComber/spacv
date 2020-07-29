@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import geopandas as gpd
 from sklearn.neighbors import BallTree
 from scipy.spatial.distance import pdist, squareform
 from scipy.optimize import curve_fit
@@ -146,7 +148,8 @@ def plot_autocorrelation_ranges(XYs, X, lags, bw):
     ax.set_ylabel("Ranges (m)")
     ax.set_xlabel("Variables")
     median_eff_range = np.median(ranges)
-    ax.text(0, median_eff_range + median_eff_range / 100 * 10, '{:.3f}m'.format(median_eff_range), color='red', size=14 )
+
+    ax.text(0, median_eff_range + (np.max(ranges) / 100 * 3), '{:.3f}m'.format(median_eff_range), color='red', size=14 )
     ax.axhline(median_eff_range,  color='red' , linestyle='--')
     
     return f, ax
@@ -226,11 +229,11 @@ def aoa(new_data,
     # We choose the AOA as the area where the DI does not exceed the threshold
     DIs = mindist.reshape(-1)
     masked_result = np.repeat(1, len(mindist))
-    masked_result[out > thres] = 0
+    masked_result[DIs > thres] = 0
     
     return DIs, masked_result
 
-def plot_aoa(new_data, training_data, columns, figsize, **kwargs):
+def plot_aoa(new_data, training_data, columns, figsize, fold_indices=None, **kwargs):
     """
     
     
@@ -256,18 +259,19 @@ def plot_aoa(new_data, training_data, columns, figsize, **kwargs):
     
     new_data.loc[:, 'DI'] = DIs
     new_data.loc[:, 'AOA'] = masked_result
-    new_data.loc[:, 'geometry'] = new_data_geometry
-    
+    new_data.loc[:, 'geometry'] = new_data_geometry    
     new_data = gpd.GeoDataFrame(new_data, geometry=new_data['geometry'])
         
     f,ax = plt.subplots(1, 2, figsize=figsize)
     
-    new_data.plot(ax=ax[0], column='DI', legend=True, cmap='viridis', legend_kwds={'shrink':.7})
-    training_data.plot(ax=ax[0], alpha=.1)
-    
-    new_data.plot(ax=ax[1], column='AOA', categorical=True, legend=True)
-    training_data.plot(ax=ax[1], alpha=.1)
+    new_data.plot(ax=ax[0], column='DI', legend=True, cmap='viridis')
+    new_data.plot(ax=ax[1], column='AOA', categorical=True, 
+                  legend=True, cmap=ListedColormap(['red', 'blue']))
+    training_data.plot(ax=ax[0], alpha=.3)
+    training_data.plot(ax=ax[1], alpha=.3)
 
+    ax[0].set_aspect('auto')
+    ax[1].set_aspect('auto')
     ax[0].set_title('Dissimilarity index (DI)')
     ax[1].set_title('AOA');
 

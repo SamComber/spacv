@@ -1,8 +1,8 @@
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon
-from sklearn.neighbors import BallTree
 from matplotlib.collections import PolyCollection
+from sklearn.neighbors import BallTree
 from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
 
 def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', **kwargs):
@@ -37,6 +37,8 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', **k
     if method == 'unique':
         grid['grid_id'] = grid.index
     elif method == 'systematic':
+        if shape != 'square':
+            raise Exception('systematic grid assignment method does not work for irregular grids.')
         grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, kwargs.get('direction'))
     elif method == 'random':
         grid['grid_id'] = assign_randomized(grid, kwargs.get('n_groups'))

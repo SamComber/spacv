@@ -1,10 +1,10 @@
 import numbers
 import numpy as np
 import geopandas as gpd
+from sklearn.cluster import MiniBatchKMeans
 from .base_classes import BaseSpatialCV
 from .grid_builder import construct_blocks, assign_pt_to_grid
 from .utils import geometry_to_2d, convert_geodataframe
-from sklearn.cluster import MiniBatchKMeans
 
 class HBLOCK(BaseSpatialCV):
     """
@@ -190,6 +190,35 @@ class RepeatSKCV(SKCV):
             cv = self.cv(self.folds, **self.kwargs)
             for train_index, test_index in cv.split(XYs):
                 yield train_index, test_index
+              
+class UserDefinedSCV(BaseSpatialCV):
+    """
+    Spatial cross-validation using user-defined polygons.
+    
+    Yields indices to split data into training and test sets.
+    
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    
+    """
+    def __init__(
+        self,
+        buffer_radius = 0,
+        shuffle = False
+    ):
+        self.buffer_radius = buffer_radius
+        
+    def _iter_test_indices(self, XYs):
+
+        
+        for fold_indices in indices_from_folds:   
+
+            super()._remove_buffered_indices(XYs, test_indices, 
+                                            self.buffer_radius, fold_convex_hull)
+            yield test_indices, train_exclude
         
 def compute_gcv(y, X):
     """

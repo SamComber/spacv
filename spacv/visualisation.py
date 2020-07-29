@@ -1,6 +1,9 @@
+import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.neighbors import BallTree
 from scipy.spatial.distance import pdist, squareform
 from scipy.optimize import curve_fit
+from .utils import geometry_to_2d
 
 try:
     import seaborn as sns
@@ -11,25 +14,27 @@ except ModuleNotFoundError:
 # ADD: create nicer plots, they're horrible
 
 def variogram_at_lag(XYs, y, lags, bw):
+    """
     
+    """
     XYs = geometry_to_2d(XYs)
     y = np.asarray(y)
-    
     paired_distances = pdist(XYs)
     pd_m = squareform(paired_distances)
-
     semivariances = []
     
     for lag in lags:
+        # Mask pts outside bandwidth
         lower = pd_m >= lag-bw
         upper = pd_m <= lag+bw
         mask = np.logical_and(lower, upper)
-
         semivariances.append(compute_semivariance(y, mask, lag, bw))
-        
     return np.c_[semivariances, lags].T
 
 def compute_semivariance(y, mask, lag, bw):
+    """
+    
+    """
     semis, counts = [], []
     for i in range( len(y) ):
         yi = np.array([y[i]])
@@ -89,7 +94,7 @@ def plot_autocorrelation_ranges(XYs, X, lags, bw):
     ax.set_ylabel("Ranges (m)")
     ax.set_xlabel("Variables")
     median_eff_range = np.median(ranges)
-    ax.text(0, median_eff_range + median_eff_range / 100 * 10, '{:.3f}m'.format(median_range_val), color='red', size=14 )
+    ax.text(0, median_eff_range + median_eff_range / 100 * 10, '{:.3f}m'.format(median_eff_range), color='red', size=14 )
     ax.axhline(median_eff_range,  color='red' , linestyle='--')
     plt.show()
     

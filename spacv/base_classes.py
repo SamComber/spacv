@@ -13,10 +13,8 @@ class BaseSpatialCV():
         
     def split(self, XYs, y=None, groups=None):
         XYs = convert_geoseries(XYs).reset_index(drop=True)
-
         minx, miny, maxx, maxy = XYs.total_bounds
         buffer_radius = self.buffer_radius
-        
         if buffer_radius > maxx-minx or buffer_radius > maxy-miny:
             raise ValueError(
                 "buffer_radius too large and excludes all points. Given {}.".format(
@@ -51,7 +49,6 @@ class BaseSpatialCV():
             candidate_deadzone = convert_geodataframe(candidate_deadzone)
             geometry_buffer = convert_geodataframe(geometry_buffer)    
             deadzone_points = gpd.sjoin(candidate_deadzone, geometry_buffer)
-        
             train_exclude = deadzone_points.loc[~deadzone_points.index.isin(test_indices)].index.values
             return test_indices, train_exclude
 

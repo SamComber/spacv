@@ -22,6 +22,7 @@ class HBLOCK(BaseSpatialCV):
         self,
         tiles_x=5,
         tiles_y=5,
+        shape='square',
         method='unique',
         buffer_radius=0,
         shuffle=False,
@@ -33,6 +34,7 @@ class HBLOCK(BaseSpatialCV):
     ):        
         self.tiles_x = tiles_x
         self.tiles_y = tiles_y
+        self.shape = shape
         self.method = method
         self.buffer_radius = buffer_radius
         self.shuffle = shuffle
@@ -48,6 +50,7 @@ class HBLOCK(BaseSpatialCV):
         grid = construct_blocks(XYs, 
                       tiles_x = self.tiles_x, 
                       tiles_y = self.tiles_y, 
+                      shape = self.shape,
                       method = self.method, 
                       direction = self.direction, 
                       n_groups = self.n_groups,
@@ -66,16 +69,12 @@ class HBLOCK(BaseSpatialCV):
             check_random_state(self.random_state).shuffle(grid_ids)
 
         # Yield test indices and optionally training indices within buffer
-                
         for grid_id in grid_ids:
             test_indices = XYs.loc[XYs['grid_id'] == grid_id ].index.values
-            
             # Remove empty grids
             if len(test_indices) < 1:
                 continue
-                        
             grid_poly_buffer = grid.loc[[grid_id]].buffer(self.buffer_radius)
-        
             test_indices, train_exclude = \
                 super()._remove_buffered_indices(XYs, test_indices, 
                                             self.buffer_radius, grid_poly_buffer)
@@ -123,10 +122,6 @@ class SKCV(BaseSpatialCV):
                 super()._remove_buffered_indices(XYs, test_indices, 
                                             self.buffer_radius, fold_convex_hull)
             yield test_indices, train_exclude
-            
-    def __str__(self):
-        return 'SKCV(name='+self.buffer_radius+', age='+str(self.folds)+ ')'
-              
                 
 class RepeatSKCV(SKCV):
     
@@ -138,7 +133,6 @@ class RepeatSKCV(SKCV):
     ):
         if not isinstance(n_repeats, numbers.Integral):
             raise ValueError("Number of repetitions must be of Integral type.")
-
         if n_repeats <= 0:
             raise ValueError("Number of repetitions must be greater than 0.")
         cv = SKCV
@@ -158,10 +152,12 @@ def compute_gcv(y, X):
     
     y = y.reshape(-1, 1)
     ols = spreg.ols.OLS(y, X)
-    
     hat = X.dot(np.linalg.inv(X.T.dot(X)).dot(X.T))
     mse = np.mean( (y - ols.predy)**2)
     n = len(y)
+    
+     # MM w/ spatial weights
+    
     h_value = np.trace( np.identity(n) - hat ) / n
     gcv = mse / h_value**2
 

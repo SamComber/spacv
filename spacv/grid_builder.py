@@ -2,9 +2,10 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon
 from sklearn.neighbors import BallTree
+from matplotlib.collections import PolyCollection
 from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
 
-def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
+def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', **kwargs):
     """
     Build grid over study area with user-defined number of tiles.
     
@@ -30,7 +31,7 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
     
     """
     # Construct grid of square polygons of defined size
-    grid = construct_grid(XYs, tiles_x, tiles_y)
+    grid = construct_grid(XYs, tiles_x, tiles_y, shape)
     
     # Set grid assignment method
     if method == 'unique':
@@ -49,7 +50,15 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', **kwargs):
     
     return grid
     
-def construct_grid(XYs, tiles_x, tiles_y):
+def construct_grid(XYs, tiles_x, tiles_y, shape):
+
+    if shape == 'square':
+        return construct_square_grid(XYs, tiles_x, tiles_y)
+    if shape == 'hex':
+        return construct_hex_grid(XYs, tiles_x, tiles_y)
+    
+
+def construct_square_grid(XYs, tiles_x, tiles_y):
     """
     Build grid over study area with user-defined number of tiles.
     
@@ -92,6 +101,47 @@ def construct_grid(XYs, tiles_x, tiles_y):
     grid = gpd.GeoDataFrame({'geometry':polys})
             
     return grid    
+
+def construct_hex_grid(XYs, tiles_x, tiles_y):
+
+    minx, miny, maxx, maxy = XYs.total_bounds
+    padding = 1.e-9 * (maxx - minx)
+    minx -= padding
+    maxx += padding
+    sx = (maxx - minx) / tiles_x
+    sy = (maxy - miny) / tiles_y
+
+    nx1 = tiles_x + 1
+    ny1 = tiles_y + 1
+    nx2 = tiles_x
+    ny2 = tiles_y
+    n = nx1 * ny1 + nx2 * ny2
+
+    offsets = np.zeros((n, 2), float)
+    offsets[:nx1 * ny1, 0] = np.repeat(np.arange(nx1), ny1)
+    offsets[:nx1 * ny1, 1] = np.tile(np.arange(ny1), nx1)
+    offsets[nx1 * ny1:, 0] = np.repeat(np.arange(nx2) + 0.5, ny2)
+    offsets[nx1 * ny1:, 1] = np.tile(np.arange(ny2), nx2) + 0.5
+    offsets[:, 0] *= sx
+    offsets[:, 1] *= sy
+    offsets[:, 0] += minx
+    offsets[:, 1] += miny
+
+    polygon = [sx, sy / 3] * np.array(
+        [[.5, -.5], [.5, .5], [0., 1.], [-.5, .5], [-.5, -.5], [0., -1.]])
+
+    collection = PolyCollection([polygon],offsets=offsets)
+
+    hex_polys = collection.get_paths()[0].vertices
+    hex_array = []
+    for xs,ys in collection.get_offsets():
+        hex_x = np.add(hex_polys[:,0],  xs)
+        hex_y = np.add(hex_polys[:,1],  ys)
+        hex_array.append(Polygon(np.vstack([hex_x, hex_y]).T))
+
+    hex_grid = gpd.GeoDataFrame({'geometry':hex_array})
+    
+    return hex_grid
 
 def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
     """

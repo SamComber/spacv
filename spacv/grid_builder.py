@@ -8,7 +8,8 @@ from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
 
 
 def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', 
-                     direction='diagonal', data=None, n_groups=5, n_sims=10, distance_metric='euclidean'):
+                     direction='diagonal', data=None, n_groups=5, n_sims=10, 
+                     distance_metric='euclidean'):
     """
     Build grid over study area with user-defined number of tiles.
     

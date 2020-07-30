@@ -17,12 +17,20 @@ class SquareUniqueGrid_Tester(unittest.TestCase):
             {'geometry' : gpd.points_from_xy(x,y)}
         )            
     
-    def test_skcv(self):
+    def test_unique_grid(self):
         np.random.seed(10)
         grid = construct_blocks(self.XYs, self.tiles_x, self.tiles_y, self.method)
         # Test count of unique folds
-        np.testing.assert_equal(grid.shape[0], 50 )
+        np.testing.assert_equal(grid.shape[0], 5 * 10 )
         np.testing.assert_equal( len(grid.grid_id.unique()), 50 )
+        
+        
+class SquareSystematicGrid_Tester(unittest.TestCase):
+    def setUp(self):   
+        pass
+    
+    def test_systematic_grid(self):
+
         
 suite = unittest.TestSuite()
 test_classes = [SquareUniqueGrid_Tester]

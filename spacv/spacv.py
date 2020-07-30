@@ -1,3 +1,4 @@
+import warnings 
 import numbers
 import numpy as np
 import geopandas as gpd
@@ -135,21 +136,24 @@ class SKCV(BaseSpatialCV):
             XYs_to_2d = geometry_to_2d(XYs)
             km_skcv = MiniBatchKMeans(n_clusters = self.folds, random_state=self.random_state)
             labels = km_skcv.fit(XYs_to_2d).labels_
+            uniques, counts = np.unique(labels, return_counts=True)
+
+            check_fold_n = (counts < 2)
+            if check_fold_n.any():
+                warn = "{} folds contain less than three points and do not form polygons.".format( check_fold_n.sum() )
+                warnings.warn(warn)
             indices_from_folds = [np.argwhere(labels == i).reshape(-1) 
-                                      for i in range( self.folds )]
+                                                  for i in uniques]    
         
         for fold_indices in indices_from_folds:   
             if sloo:
                 test_indices = np.array([fold_indices])
             else:
                 test_indices = np.array(fold_indices)
-                
             fold_convex_hull = XYs.loc[test_indices].unary_union.convex_hull
             test_indices, train_exclude = \
                 super()._remove_buffered_indices(XYs, test_indices, 
                                             self.buffer_radius, fold_convex_hull)
-            
-            
             yield test_indices, train_exclude
                 
 class RepeatSKCV(SKCV):

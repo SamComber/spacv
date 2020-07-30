@@ -7,10 +7,8 @@ class BaseSpatialCV():
     Base class for partitioning-based spatial cross-validation approaches.
     """
     def __init__(
-        self,
-        random_state = None
+        self
     ):
-        self.random_state = random_state
         self.buffer_radius = buffer_radius
         
     def split(self, XYs, y=None, groups=None):
@@ -49,7 +47,7 @@ class BaseSpatialCV():
             # Buffer grid and clip training instances            
             candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices )]            
             candidate_deadzone = convert_geodataframe(candidate_deadzone)
-            geometry_buffer = convert_geodataframe(geometry_buffer)  
+            geometry_buffer = convert_geodataframe(geometry_buffer.buffer(buffer_radius))
             deadzone_points = gpd.sjoin(candidate_deadzone, geometry_buffer)
             train_exclude = deadzone_points.loc[~deadzone_points.index.isin(test_indices)].index.values
             return test_indices, train_exclude

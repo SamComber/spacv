@@ -4,7 +4,7 @@ import geopandas as gpd
 from sklearn.cluster import MiniBatchKMeans
 from .base_classes import BaseSpatialCV
 from .grid_builder import construct_blocks, assign_pt_to_grid
-from .utils import geometry_to_2d, convert_geodataframe
+from .utils import geometry_to_2d, convert_geodataframe, load_custom_polygon
 
 class HBLOCK(BaseSpatialCV):
     """
@@ -44,7 +44,6 @@ class HBLOCK(BaseSpatialCV):
         shape='square',
         method='unique',
         buffer_radius=0,
-        shuffle=False,
         direction='diagonal',
         n_groups=5,
         data=None,
@@ -56,7 +55,6 @@ class HBLOCK(BaseSpatialCV):
         self.shape = shape
         self.method = method
         self.buffer_radius = buffer_radius
-        self.shuffle = shuffle
         self.direction = direction
         self.n_groups = n_groups
         self.data = data
@@ -82,10 +80,6 @@ class HBLOCK(BaseSpatialCV):
         # Assign pts to grids
         XYs = assign_pt_to_grid(XYs, grid, self.distance_metric)
         grid_ids = np.unique(grid.grid_id)
-                
-        # Shuffle grid order 
-        if self.shuffle:
-            check_random_state(self.random_state).shuffle(grid_ids)
 
         # Yield test indices and optionally training indices within buffer
         for grid_id in grid_ids:
@@ -116,11 +110,11 @@ class SKCV(BaseSpatialCV):
         self,
         folds=10,
         buffer_radius = 0,
-        shuffle = False,
         random_state = None
     ):
         self.folds = folds
         self.buffer_radius = buffer_radius
+        self.random_state = random_state
         
     def _iter_test_indices(self, XYs):
         if self.folds > len(XYs) :
@@ -139,7 +133,7 @@ class SKCV(BaseSpatialCV):
         else:
             # Partion XYs space into folds
             XYs_to_2d = geometry_to_2d(XYs)
-            km_skcv = MiniBatchKMeans(n_clusters = self.folds)
+            km_skcv = MiniBatchKMeans(n_clusters = self.folds, random_state=self.random_state)
             labels = km_skcv.fit(XYs_to_2d).labels_
             indices_from_folds = [np.argwhere(labels == i).reshape(-1) 
                                       for i in range( self.folds )]
@@ -149,10 +143,13 @@ class SKCV(BaseSpatialCV):
                 test_indices = np.array([fold_indices])
             else:
                 test_indices = np.array(fold_indices)
+                
             fold_convex_hull = XYs.loc[test_indices].unary_union.convex_hull
             test_indices, train_exclude = \
                 super()._remove_buffered_indices(XYs, test_indices, 
                                             self.buffer_radius, fold_convex_hull)
+            
+            
             yield test_indices, train_exclude
                 
 class RepeatSKCV(SKCV):
@@ -190,7 +187,7 @@ class RepeatSKCV(SKCV):
             cv = self.cv(self.folds, **self.kwargs)
             for train_index, test_index in cv.split(XYs):
                 yield train_index, test_index
-              
+                
 class UserDefinedSCV(BaseSpatialCV):
     """
     Spatial cross-validation using user-defined polygons.
@@ -206,19 +203,32 @@ class UserDefinedSCV(BaseSpatialCV):
     """
     def __init__(
         self,
+        custom_polygons,
         buffer_radius = 0,
-        shuffle = False
-    ):
+        distance_metric = 'euclidean'
+    ):  
         self.buffer_radius = buffer_radius
+        self.custom_polygons = load_custom_polygon(custom_polygons)
+        self.distance_metric = distance_metric
         
     def _iter_test_indices(self, XYs):
-
+        grid = self.custom_polygons
+        grid['grid_id'] = grid.index
+        grid_ids = np.unique(grid.grid_id)
         
-        for fold_indices in indices_from_folds:   
-
-            super()._remove_buffered_indices(XYs, test_indices, 
-                                            self.buffer_radius, fold_convex_hull)
-            yield test_indices, train_exclude
+        XYs = assign_pt_to_grid(XYs, grid, self.distance_metric)
+        
+        # Yield test indices and optionally training indices within buffer
+        for grid_id in grid_ids:
+            test_indices = XYs.loc[XYs['grid_id'] == grid_id ].index.values
+            # Remove empty grids
+            if len(test_indices) < 1:
+                continue
+            grid_poly_buffer = grid.loc[[grid_id]].buffer(self.buffer_radius)
+            test_indices, train_exclude = \
+                super()._remove_buffered_indices(XYs, test_indices, 
+                                            self.buffer_radius, grid_poly_buffer)
+            yield test_indices, train_exclude 
         
 def compute_gcv(y, X):
     """

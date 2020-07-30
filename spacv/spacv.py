@@ -61,6 +61,7 @@ class HBLOCK(BaseSpatialCV):
         self.data = data
         self.n_sims = n_sims
         self.distance_metric = distance_metric
+        self.n_splits = tiles_x*tiles_y
         
     def _iter_test_indices(self, XYs):
                 
@@ -109,22 +110,23 @@ class SKCV(BaseSpatialCV):
     """
     def __init__(
         self,
-        folds=10,
+        n_splits=10,
         buffer_radius = 0,
         random_state = None
     ):
-        self.folds = folds
+        self.n_splits = n_splits
         self.buffer_radius = buffer_radius
         self.random_state = random_state
         
     def _iter_test_indices(self, XYs):
-        if self.folds > len(XYs) :
+        if self.n_splits > len(XYs) :
             raise ValueError(
-                "Number of specified folds is larger than number of data points. Given {} observations and {} folds.".format(
-                    len(XYs), self.folds
+                "Number of specified n_splits (folds) is larger than number of data points. Given {} observations and {} folds.".format(
+                    len(XYs), self.n_splits
                 )
             )
-        sloo = len(XYs) == self.folds
+        sloo = len(XYs) == self.n_splits
+        lattice = True
             
         # If K = N, SLOO
         if sloo:
@@ -134,7 +136,7 @@ class SKCV(BaseSpatialCV):
         else:
             # Partion XYs space into folds
             XYs_to_2d = geometry_to_2d(XYs)
-            km_skcv = MiniBatchKMeans(n_clusters = self.folds, random_state=self.random_state)
+            km_skcv = MiniBatchKMeans(n_clusters = self.n_splits, random_state=self.random_state)
             labels = km_skcv.fit(XYs_to_2d).labels_
             uniques, counts = np.unique(labels, return_counts=True)
 
@@ -144,16 +146,20 @@ class SKCV(BaseSpatialCV):
                 warnings.warn(warn)
             indices_from_folds = [np.argwhere(labels == i).reshape(-1) 
                                                   for i in uniques]    
-        
         for fold_indices in indices_from_folds:   
             if sloo:
                 test_indices = np.array([fold_indices])
+                fold_polygon = XYs.loc[test_indices].buffer(self.buffer_radius)
+            elif lattice:
+                test_indices = np.array(fold_indices)
+                fold_polygon = XYs.loc[test_indices].unary_union.buffer(self.buffer_radius)
             else:
                 test_indices = np.array(fold_indices)
-            fold_convex_hull = XYs.loc[test_indices].unary_union.convex_hull
+                fold_polygon = XYs.loc[test_indices].unary_union.convex_hull.buffer(self.radius)
+                
             test_indices, train_exclude = \
                 super()._remove_buffered_indices(XYs, test_indices, 
-                                            self.buffer_radius, fold_convex_hull)
+                                            self.buffer_radius, fold_polygon)
             yield test_indices, train_exclude
                 
 class RepeatSKCV(SKCV):
@@ -172,7 +178,7 @@ class RepeatSKCV(SKCV):
     def __init__(
         self,
         n_repeats=10,
-        folds=10,
+        n_splits=10,
         **kwargs
     ):
         if not isinstance(n_repeats, numbers.Integral):
@@ -182,13 +188,13 @@ class RepeatSKCV(SKCV):
         cv = SKCV
         self.cv = cv
         self.n_repeats = n_repeats
-        self.folds = folds
+        self.n_splits = n_splits
         self.kwargs = kwargs
                 
     def split(self, XYs):
         n_repeats = self.n_repeats
         for idx in range(n_repeats):
-            cv = self.cv(self.folds, **self.kwargs)
+            cv = self.cv(self.n_splits, **self.kwargs)
             for train_index, test_index in cv.split(XYs):
                 yield train_index, test_index
                 
@@ -227,7 +233,7 @@ class UserDefinedSCV(BaseSpatialCV):
             test_indices = XYs.loc[XYs['grid_id'] == grid_id ].index.values
             # Remove empty grids
             if len(test_indices) < 1:
-                continue
+                continue                
             grid_poly_buffer = grid.loc[[grid_id]].buffer(self.buffer_radius)
             test_indices, train_exclude = \
                 super()._remove_buffered_indices(XYs, test_indices, 

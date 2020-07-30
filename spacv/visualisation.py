@@ -167,21 +167,22 @@ def aoa(new_data,
     
     Parameters
     ----------
-    new_data : Geoseries
+    new_data : GeoDataFrame
+        A GeoDataFrame containing unseen data to measure AOA for.
+    training_data : GeoDataFrame
         
-    training_data
-    
     thres : default=0.95
-    
+        Threshold used to 
     fold_indices :
-    
+        
     distance_metric : string, default='euclidean'
-    
+        Distance metric to calculate distances between new_data and training_data.
+        Defaults to euclidean for projected CRS, otherwise haversine for unprojected.
     Returns
     -------
-    DIs
+    DIs : array
     
-    masked_result
+    masked_result : array
     
     """
     if len(training_data) <= 1:

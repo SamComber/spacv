@@ -1,7 +1,9 @@
+import sys, os
+sys.path.append(os.path.abspath("../.."))
 import unittest
 import numpy as np
 import geopandas as gpd
-
+import spacv
 
 class SKCV_Tester(unittest.TestCase):
     def setUp(self):
@@ -9,7 +11,7 @@ class SKCV_Tester(unittest.TestCase):
         x = np.random.randint(0, 3000, 30)
         y = np.random.randint(0, 3000, 30)
         
-        self.gdf = gpd.GeoDataFrame(
+        self.gdf = gpd.GeoSeries(
             {'geometry' : gpd.points_from_xy(x,y)}
         )
         
@@ -50,6 +52,7 @@ class SKCV_Tester(unittest.TestCase):
         np.testing.assert_equal(self.fold_train_one, scv_train_one)
         np.testing.assert_equal(self.fold_train_two, scv_train_two)
         np.testing.assert_equal(self.fold_train_three, scv_train_three)
+        
         
 class HBLOCK_Tester(unittest.TestCase):
     def setUp(self):

@@ -7,7 +7,8 @@ from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
 
 
 
-def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', **kwargs):
+def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', 
+                     direction='diagonal', data=None, n_groups=5, n_sims=10, distance_metric='euclidean'):
     """
     Build grid over study area with user-defined number of tiles.
     
@@ -41,14 +42,14 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', **k
     elif method == 'systematic':
         if shape != 'square':
             raise Exception('systematic grid assignment method does not work for irregular grids.')
-        grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, kwargs.get('direction'))
+        grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, direction)
     elif method == 'random':
-        grid['grid_id'] = assign_randomized(grid, kwargs.get('n_groups'))
+        grid['grid_id'] = assign_randomized(grid, n_groups)
     elif method == 'optimized_random':
-        grid['grid_id'] = assign_optimized_random(grid, XYs, kwargs.get('data'), 
-                                                             kwargs.get('n_groups'),
-                                                             kwargs.get('n_sims'), 
-                                                             kwargs.get('distance_metric'))
+        grid['grid_id'] = assign_optimized_random(grid, XYs, data, 
+                                                             n_groups,
+                                                             n_sims, 
+                                                             distance_metric)
     else:
         raise ValueError('Method not recognised. Choose between: unique, systematic, random or optimized_random.')
     

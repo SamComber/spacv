@@ -1,7 +1,7 @@
 import numpy as np
 import geopandas as gpd
-from .utils import convert_geoseries, convert_geodataframe
 from sklearn.model_selection import BaseCrossValidator
+from .utils import convert_geoseries, convert_geodataframe
 
 class BaseSpatialCV(BaseCrossValidator):
     """
@@ -15,6 +15,7 @@ class BaseSpatialCV(BaseCrossValidator):
     def split(self, XYs, y=None, groups=None):
         XYs = convert_geoseries(XYs).reset_index(drop=True)
         minx, miny, maxx, maxy = XYs.total_bounds
+        
         buffer_radius = self.buffer_radius
         if buffer_radius > maxx-minx or buffer_radius > maxy-miny:
             raise ValueError(

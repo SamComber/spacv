@@ -10,7 +10,11 @@ def convert_geoseries(XYs):
     if isinstance(XYs, gpd.GeoDataFrame):
         XYs = XYs.geometry
     if isinstance(XYs, np.ndarray):
-        XYs= gpd.GeoSeries( gpd.points_from_xy(XYs) )
+        XYs = gpd.GeoSeries( gpd.points_from_xy(XYs) )
+    
+    if isinstance(XYs, gpd.GeoDataFrame):
+        if any(XYs.geom_type == 'Polygon') or any(XYs.geom_type == 'MultiPolygon'):
+            XYs = XYs.geometry.centroid        
     return XYs
 
 def convert_geodataframe(XYs):
@@ -19,7 +23,7 @@ def convert_geodataframe(XYs):
     if isinstance(XYs, np.ndarray):
         XYs = gpd.GeoDataFrame({'geometry': gpd.points_from_xy(XYs) })
     if isinstance(XYs, (Point, Polygon, LineString, MultiPolygon)):
-        XYs = gpd.GeoDataFrame({'geometry': [XYs] })
+        XYs = gpd.GeoDataFrame({'geometry': [XYs] })        
     return XYs
 
 def convert_numpy(X):

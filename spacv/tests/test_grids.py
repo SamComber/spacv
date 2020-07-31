@@ -1,5 +1,3 @@
-import sys, os
-sys.path.append(os.path.abspath("../.."))
 import unittest
 import numpy as np
 import geopandas as gpd
@@ -30,7 +28,7 @@ class SquareSystematicGrid_Tester(unittest.TestCase):
         pass
     
     def test_systematic_grid(self):
-
+        pass
         
 suite = unittest.TestSuite()
 test_classes = [SquareUniqueGrid_Tester]

@@ -5,8 +5,6 @@ from matplotlib.collections import PolyCollection
 from sklearn.neighbors import BallTree
 from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
 
-
-
 def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', 
                      direction='diagonal', data=None, n_groups=5, n_sims=10, 
                      distance_metric='euclidean'):

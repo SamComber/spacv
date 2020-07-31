@@ -126,13 +126,12 @@ class SKCV(BaseSpatialCV):
                 )
             )
         sloo = len(XYs) == self.n_splits
-        lattice = True
-            
+        lattice = any(XYs.geom_type == 'Polygon') or any(XYs.geom_type == 'MultiPolygon')
+        
         # If K = N, SLOO
         if sloo:
             num_samples = XYs.shape[0]
             indices_from_folds = np.arange(num_samples)
-            
         else:
             # Partion XYs space into folds
             XYs_to_2d = geometry_to_2d(XYs)
@@ -152,10 +151,10 @@ class SKCV(BaseSpatialCV):
                 fold_polygon = XYs.loc[test_indices].buffer(self.buffer_radius)
             elif lattice:
                 test_indices = np.array(fold_indices)
-                fold_polygon = XYs.loc[test_indices].unary_union.buffer(self.buffer_radius)
-            else:
+                fold_polygon = XYs.loc[test_indices].unary_union.buffer(self.buffer_radius) 
+            else: # skcv
                 test_indices = np.array(fold_indices)
-                fold_polygon = XYs.loc[test_indices].unary_union.convex_hull.buffer(self.radius)
+                fold_polygon = XYs.loc[test_indices].unary_union.convex_hull.buffer(self.buffer_radius)
                 
             test_indices, train_exclude = \
                 super()._remove_buffered_indices(XYs, test_indices, 
@@ -185,8 +184,7 @@ class RepeatSKCV(SKCV):
             raise ValueError("Number of repetitions must be of Integral type.")
         if n_repeats <= 0:
             raise ValueError("Number of repetitions must be greater than 0.")
-        cv = SKCV
-        self.cv = cv
+        self.cv = SKCV
         self.n_repeats = n_repeats
         self.n_splits = n_splits
         self.kwargs = kwargs
@@ -225,7 +223,6 @@ class UserDefinedSCV(BaseSpatialCV):
         grid = self.custom_polygons
         grid['grid_id'] = grid.index
         grid_ids = np.unique(grid.grid_id)
-        
         XYs = assign_pt_to_grid(XYs, grid, self.distance_metric)
         
         # Yield test indices and optionally training indices within buffer

@@ -1,5 +1,3 @@
-import sys, os
-sys.path.append(os.path.abspath("../.."))
 import unittest
 import numpy as np
 import geopandas as gpd
@@ -11,7 +9,7 @@ class SKCV_Tester(unittest.TestCase):
         x = np.random.randint(0, 3000, 30)
         y = np.random.randint(0, 3000, 30)
         
-        self.gdf = gpd.GeoSeries(
+        self.gdf = gpd.GeoDataFrame(
             {'geometry' : gpd.points_from_xy(x,y)}
         )
         
@@ -25,8 +23,8 @@ class SKCV_Tester(unittest.TestCase):
     
     def test_skcv(self):
         np.random.seed(10)
-        scv = spacv.SKCV(folds = 3, buffer_radius = 450, random_state=123)
-        self.assertEqual(scv.folds, 3)
+        scv = spacv.SKCV(n_splits = 3, buffer_radius = 450, random_state=123)
+        self.assertEqual(scv.n_splits, 3)
         self.assertEqual(scv.buffer_radius, 450)
         self.assertEqual(scv.random_state, 123)
         
@@ -34,7 +32,6 @@ class SKCV_Tester(unittest.TestCase):
         for train, test in scv.split(self.gdf):
             fold_train.append(train)
             fold_test.append(test)
-            print(test)
 
         scv_fold_one = fold_test[0]
         scv_fold_two = fold_test[1]

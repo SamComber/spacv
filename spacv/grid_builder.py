@@ -7,7 +7,7 @@ from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
 
 def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square', 
                      direction='diagonal', data=None, n_groups=5, n_sims=10, 
-                     distance_metric='euclidean'):
+                     distance_metric='euclidean', random_state=None):
     """
     Build grid over study area with user-defined number of tiles.
     
@@ -30,6 +30,11 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
     -------
     grid : GeoDataFrame Dataframe
         GeoDataFrame with square grids as shapely polygons.
+        
+    Examples
+    -------- 
+    
+    
     
     """
     # Construct grid of square polygons of defined size
@@ -43,7 +48,7 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
             raise Exception('systematic grid assignment method does not work for irregular grids.')
         grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, direction)
     elif method == 'random':
-        grid['grid_id'] = assign_randomized(grid, n_groups)
+        grid['grid_id'] = assign_randomized(grid, n_groups, random_state)
     elif method == 'optimized_random':
         grid['grid_id'] = assign_optimized_random(grid, XYs, data, 
                                                              n_groups,
@@ -195,10 +200,12 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
     return grid_id
 
 
-def assign_randomized(grid, n_groups=5):
+def assign_randomized(grid, n_groups=5, random_state=None):
     """
     Set grid pattern as randomized by randomly assigning grid IDs.
     """
+    np.random.seed(random_state)
+    
     # Determine number of randomized groups
     n_random_grps = np.arange(0, n_groups)
     n_grids = grid.shape[0]
@@ -249,7 +256,6 @@ def assign_pt_to_grid(XYs, grid, distance_metric='euclidean'):
     Spatial join pts to grids. Reassign border points to nearest grid based on centroid distance. 
     """
     XYs = convert_geodataframe(XYs)   
-    
     # Equate spatial reference systems if defined 
     if not grid.crs == XYs.crs:
         grid.crs = XYs.crs        
@@ -257,7 +263,6 @@ def assign_pt_to_grid(XYs, grid, distance_metric='euclidean'):
         
     # In rare cases, points will sit at the border separating two grids
     if XYs['grid_id'].isna().any():
-        
         # Find border pts and assign to nearest grid centroid
         grid_centroid = grid.geometry.centroid
         grid_centroid = geometry_to_2d(grid_centroid)
@@ -267,8 +272,7 @@ def assign_pt_to_grid(XYs, grid, distance_metric='euclidean'):
         
         # Update border pt grid IDs
         tree = BallTree(grid_centroid, metric=distance_metric) 
-        grid_id  = tree.query(border_pts, k=1, return_distance=False)
+        grid_id  = tree.query(border_pts, k=1, return_distance=False).flatten()
+        grid_id = grid.loc[grid_id, 'grid_id'].values
         XYs.loc[border_pt_index, 'grid_id'] = grid_id
-#         XYs = XYs.drop(columns=['index_right'])
-
     return XYs

@@ -9,7 +9,11 @@ from .utils import geometry_to_2d, convert_geodataframe, load_custom_polygon
 
 class HBLOCK(BaseSpatialCV):
     """
-    H-Blocking spatial cross-validator.
+    H-Blocking spatial cross-validator. Partitions study area
+    into a series of grid polygons that are assigned into
+    different folds based on several user-defined options. HBLOCK
+    exposes several parameters for choosing block sizes, types and 
+    fold assignments.
     
     Yields indices to split data into training and test sets.
     
@@ -20,22 +24,39 @@ class HBLOCK(BaseSpatialCV):
     tiles_y : integer, default=5
         Number of grid tiles in the North-South direction.
     shape : string, default='square'
-        Specify 
+        Specify shape of grid polygons, square or hex.
     method : string, default='unique'
-    
+        Choose grid ID assignment method to build folds. Options
+        are: unique, where every polygon in the grid is a fold; 
+        systematic, where folds reflect diagonal or anti-diagonal 
+        patterns across the study area; random, where folds are 
+        randomly assigned into groups determined by n_groups parameter;
+        and optimized_random, where random assignment of grids into
+        groups are optimized by reducing disimilarity between folds.
     buffer_radius : integer, default=0
-    
-    shuffle : boolean, default=False
-    
+        Buffer radius (dead zone) to exclude training points that are 
+        within a defined distance of test data within a fold.
     direction : string, default='diagonal'
-    
+        Choose direction of pattern for systematic grid assignment,
+        diagonal or anti-diagonal (anti).
     n_groups : integer, default=5
-    
-    data : dataframe
-    
+        Number of folds to randomly assign grid polygons into.
+    data : array
+        Array containing covariates used in predictive task. Used to
+        calculate disimilarity of feature space between folds to 
+        find the optimized random grid assignment.
     n_sims : integer, default=10
-    
+        Number of iterations in which to find optimized grid assignment
+        into folds.
     distance_metric : string, default='euclidean'
+        Distance metric used to reconcile points that sit at exact
+        border between two grids. Defaults to euclidean assuming
+        projected coordinate system, otherwise use haversine for
+        unprojected spaces.
+        
+    Examples
+    -------- 
+    
     
     """
     def __init__(
@@ -49,7 +70,8 @@ class HBLOCK(BaseSpatialCV):
         n_groups=5,
         data=None,
         n_sims=10,
-        distance_metric='euclidean'
+        distance_metric='euclidean',
+        random_state=None
     ):        
         self.tiles_x = tiles_x
         self.tiles_y = tiles_y
@@ -62,9 +84,26 @@ class HBLOCK(BaseSpatialCV):
         self.n_sims = n_sims
         self.distance_metric = distance_metric
         self.n_splits = tiles_x*tiles_y
+        self.random_state = random_state
         
     def _iter_test_indices(self, XYs):
-                
+        """
+        Generates integer indices corresponding to test sets and 
+        training indices to be excluded from model training.
+        
+        Parameters
+        ----------
+        X : GeoSeries
+            GeoSeries containing shapely Points that identify Easting
+            and Northing coordinates of data points.
+            
+        Yields
+        ------
+        test_indices : array
+            The testing set indices for that fold.
+        train_exclude : array
+            The training set indices to exclude for that fold.
+        """       
         # Define grid type used in CV procedure
         grid = construct_blocks(XYs, 
                       tiles_x = self.tiles_x, 
@@ -74,7 +113,8 @@ class HBLOCK(BaseSpatialCV):
                       direction = self.direction, 
                       n_groups = self.n_groups,
                       data = self.data, 
-                      n_sims = self.n_sims)
+                      n_sims = self.n_sims,
+                      random_state = self.random_state)
     
         # Convert to GDF to use Geopandas functions
         XYs = gpd.GeoDataFrame(({'geometry':XYs}))
@@ -97,15 +137,28 @@ class HBLOCK(BaseSpatialCV):
                     
 class SKCV(BaseSpatialCV):
     """
-    H-Blocking spatial cross-validator.
+    Spatial K-fold cross-validator. Modification of standard 
+    CV to overcome biased prediction performance of estimates 
+    due to autocorrelation in spatial data. Overoptimistic bias 
+    in performance is prevented by ensuring spatial proximity of 
+    test data, and maintaing a training set that is within a certain
+    spatial distance from the test dataset.
+    
+    When K=N, SKCV becomes a spatial leave-one-out (SLOO) cross-validator.
     
     Yields indices to split data into training and test sets.
     
     Parameters
     ----------
-    
-    Returns
-    -------
+    n_splits : int, default=10
+        Number of folds. Must be at least 2.
+    random_state : int, RandomState instance or None, optional, default=None
+        If int, random_state is the seed used by the random number generator.
+        If None, the random number generator is the RandomState instance used
+        by `np.random`.
+
+    Examples
+    -------- 
     
     """
     def __init__(
@@ -119,6 +172,23 @@ class SKCV(BaseSpatialCV):
         self.random_state = random_state
         
     def _iter_test_indices(self, XYs):
+        """
+        Generates integer indices corresponding to test sets.
+        
+        Parameters
+        ----------
+        X : GeoSeries
+            GeoSeries containing shapely Points that identify Easting
+            and Northing coordinates of data points.
+            
+        Yields
+        ------
+        test_indices : array
+            The testing set indices for that fold.
+        train_exclude : array
+            The training set indices to exclude for that fold.
+        """
+              
         if self.n_splits > len(XYs) :
             raise ValueError(
                 "Number of specified n_splits (folds) is larger than number of data points. Given {} observations and {} folds.".format(
@@ -161,24 +231,34 @@ class SKCV(BaseSpatialCV):
                                             self.buffer_radius, fold_polygon)
             yield test_indices, train_exclude
                 
-class RepeatSKCV(SKCV):
+class RepeatedSKCV(SKCV):
     """
+    Repeats Spatial K-Fold cross-validation (SKCV) n times with different 
+    K-means randomization in each repetition. Given the sensitivity of K-means
+    to the initial, randomly initialised starting values of the centroid seeds,
+    RepeatedSKCV repeats SKCV a number of times, yielding a generator of 
+    n_repeats * K test and training splits.
     
     Parameters
     ----------
-    
-    n_repeats
-    
-    n_folds
-    
-    
+    n_splits : int, default=10
+        Number of folds. Must be at least 2.
+    n_repeats : int, default=10
+        Number of times cross-validator needs to be repeated.
+    random_state : int, RandomState instance or None, optional, default=None
+        If int, random_state is the seed used by the random number generator.
+        If None, the random number generator is the RandomState instance used
+        by `np.random`.
+    **cvargs : additional params
+        Constructor parameters for cv.
     """
     
     def __init__(
         self,
         n_repeats=10,
         n_splits=10,
-        **kwargs
+        random_state=None,
+        **cvargs
     ):
         if not isinstance(n_repeats, numbers.Integral):
             raise ValueError("Number of repetitions must be of Integral type.")
@@ -192,7 +272,7 @@ class RepeatSKCV(SKCV):
     def split(self, XYs):
         n_repeats = self.n_repeats
         for idx in range(n_repeats):
-            cv = self.cv(self.n_splits, **self.kwargs)
+            cv = self.cv(self.n_splits, **self.cvargs)
             for train_index, test_index in cv.split(XYs):
                 yield train_index, test_index
                 

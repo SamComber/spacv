@@ -5,6 +5,8 @@ that assess generalization performance to datasets with spatial dependence. `spa
 a familiar sklearn-like API to expose a suite of tools useful for points-based spatial prediction tasks.
 See the notebook `spacv_guide.ipynb` for usage.
 
+![Folds](demo_viz.gif)
+
 CURRENTLY UNDER CONSTRUCTION
 
 ## Dependencies

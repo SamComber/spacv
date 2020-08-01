@@ -6,9 +6,10 @@ a familiar sklearn-like API to expose a suite of tools useful for points-based s
 See the notebook `spacv_guide.ipynb` for usage.
 
 
-<div>
+
+<p align="center">
 <img src="demo_viz.gif" width="500" height="500"/>
-</div>
+</p>
 
 CURRENTLY UNDER CONSTRUCTION
 

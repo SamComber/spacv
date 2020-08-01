@@ -93,7 +93,7 @@ class HBLOCK(BaseSpatialCV):
         
         Parameters
         ----------
-        X : GeoSeries
+        XYs : GeoSeries
             GeoSeries containing shapely Points that identify Easting
             and Northing coordinates of data points.
             
@@ -267,7 +267,7 @@ class RepeatedSKCV(SKCV):
         self.cv = SKCV
         self.n_repeats = n_repeats
         self.n_splits = n_splits
-        self.kwargs = kwargs
+        self.cvargs = cvargs
                 
     def split(self, XYs):
         n_repeats = self.n_repeats

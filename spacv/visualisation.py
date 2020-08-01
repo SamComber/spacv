@@ -139,10 +139,7 @@ def plot_autocorrelation_ranges(XYs, X, lags, bw):
                              method='trf')
         effective_range = cof[0]
         ranges.append(effective_range)
-
-    x_pos = [i for i in range(len(ranges))]
     x_labs = X.columns
-
     f, ax = plt.subplots(1, figsize=(8,6))
     ax.bar(x_labs, ranges, color='skyblue', alpha=.7)
     ax.set_ylabel("Ranges (m)")

@@ -1,9 +1,10 @@
+from abc import ABC, abstractmethod, ABCMeta
 import numpy as np
 import geopandas as gpd
 from sklearn.model_selection import BaseCrossValidator
 from .utils import convert_geoseries, convert_geodataframe
 
-class BaseSpatialCV(BaseCrossValidator):
+class BaseSpatialCV(BaseCrossValidator, metaclass=ABCMeta):
     """
     Base class for partitioning-based spatial cross-validation approaches.
     """
@@ -12,7 +13,22 @@ class BaseSpatialCV(BaseCrossValidator):
     ):
         self.buffer_radius = buffer_radius
         
-    def split(self, XYs, y=None, groups=None):
+    def split(self, XYs):
+        """
+        Generate indices to split data into training and test set.
+        Parameters
+        ----------
+        XYs : GeoSeries
+            GeoSeries containing shapely Points that identify Easting
+            and Northing coordinates of data points.
+    
+        Yields
+        ------
+        train : ndarray
+            Training set indices for iteration.
+        test : ndarray
+            Testing set indices for iteration.
+        """
         XYs = convert_geoseries(XYs).reset_index(drop=True)
         minx, miny, maxx, maxy = XYs.total_bounds
         
@@ -56,8 +72,36 @@ class BaseSpatialCV(BaseCrossValidator):
             # Yield empty array because no training data removed in dead zone when buffer is zero
             _ = np.array([], dtype=np.int)
             return test_indices, _
+        
+    @abstractmethod
+    def _iter_test_indices(self, XYs):
+        """
+        Generates integer indices corresponding to test sets and 
+        training indices to be excluded from model training.
+        
+        Parameters
+        ----------
+        X : GeoSeries
+            GeoSeries containing shapely Points that identify Easting
+            and Northing coordinates of data points.
+            
+        Yields
+        ------
+        test_indices : array
+            The testing set indices for that fold.
+        train_exclude : array
+            The training set indices to exclude for that fold.
+        """ 
     
     def get_n_splits(self):
+        """
+        Returns the number of folds used in the cross-validation.
+        
+        Returns
+        -------
+        n_splits : int
+            Returns the number of folds in the cross-validator.
+        """
         return self.n_splits
 
         

@@ -9,7 +9,7 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
                      direction='diagonal', data=None, n_groups=5, n_sims=10, 
                      distance_metric='euclidean', random_state=None):
     """
-    Build grid over study area with user-defined number of tiles.
+    Build a grid over study area with user-defined number of tiles.
     
     Parameters
     ----------
@@ -224,9 +224,7 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10, distance_met
             'Data must be supplied to spacv.HBLOCK() for computing fold' 
             ' dissimilarity when using optimized_random method.'
         )
-    
     data = convert_numpy(data)
-    
     # Build dictionary of grid IDs with paired SSR for dissimilarity 
     optimized_grid = {}
     for sim in range(n_sims):
@@ -251,10 +249,11 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10, distance_met
     return grid_id
 
 
-def assign_pt_to_grid(XYs, grid, distance_metric='euclidean'):
+def assign_pt_to_grid(XYs, grid, distance_metric='euclidean', random_state=None):
     """
     Spatial join pts to grids. Reassign border points to nearest grid based on centroid distance. 
     """
+    np.random.seed(random_state)
     XYs = convert_geodataframe(XYs)   
     # Equate spatial reference systems if defined 
     if not grid.crs == XYs.crs:

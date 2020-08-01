@@ -8,7 +8,7 @@ See the notebook `spacv_guide.ipynb` for usage.
 
 
 <p align="center">
-<img src="demo_viz.gif" width="500" height="500"/>
+<img src="demo_viz.gif" width="300" height="300"/>
 </p>
 
 CURRENTLY UNDER CONSTRUCTION

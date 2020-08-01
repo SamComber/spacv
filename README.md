@@ -21,3 +21,24 @@ CURRENTLY UNDER CONSTRUCTION
 * `geopandas`
 * `shapely`
 
+## Installation and usage
+
+To install use pip:
+
+    $ pip install spacv
+
+Then use it as:
+
+```python
+import spacv
+from sklearn.model_selection import cross_val_score
+from sklearn.svm import SVC
+
+
+skcv = spacv.SKCV(n_splits=4, buffer_radius=10) .split(XYs)
+
+svc = SVC()
+
+cross_val_score(svc, X, y, cv = skcv)
+
+```

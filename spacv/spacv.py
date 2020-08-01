@@ -7,6 +7,13 @@ from .base_classes import BaseSpatialCV
 from .grid_builder import construct_blocks, assign_pt_to_grid
 from .utils import geometry_to_2d, convert_geodataframe, load_custom_polygon
 
+__all__ = [
+    "HBLOCK",
+    "SKCV",
+    "RepeatedSKCV",
+    "UserDefinedSCV"
+]
+
 class HBLOCK(BaseSpatialCV):
     """
     H-Blocking spatial cross-validator. Partitions study area
@@ -152,6 +159,9 @@ class SKCV(BaseSpatialCV):
     ----------
     n_splits : int, default=10
         Number of folds. Must be at least 2.
+    buffer_radius : integer, default=0
+        Buffer radius (dead zone) to exclude training points that are 
+        within a defined distance of test data within a fold.
     random_state : int, RandomState instance or None, optional, default=None
         If int, random_state is the seed used by the random number generator.
         If None, the random number generator is the RandomState instance used
@@ -284,7 +294,18 @@ class UserDefinedSCV(BaseSpatialCV):
     
     Parameters
     ----------
-    
+    custom_polygons : string, GeoSeries
+        File path to user defined grid polygons used to assign data
+        points into folds.
+    buffer_radius : integer, default=0
+        Buffer radius (dead zone) to exclude training points that are 
+        within a defined distance of test data within a fold.
+    distance_metric : string, default='euclidean'
+        Distance metric used to reconcile points that sit at exact
+        border between two grids. Defaults to euclidean assuming
+        projected coordinate system, otherwise use haversine for
+        unprojected spaces.
+        
     Returns
     -------
     
@@ -300,6 +321,23 @@ class UserDefinedSCV(BaseSpatialCV):
         self.distance_metric = distance_metric
         
     def _iter_test_indices(self, XYs):
+        """
+        Generates integer indices corresponding to test sets and 
+        training indices to be excluded from model training.
+        
+        Parameters
+        ----------
+        XYs : GeoSeries
+            GeoSeries containing shapely Points that identify Easting
+            and Northing coordinates of data points.
+            
+        Yields
+        ------
+        test_indices : array
+            The testing set indices for that fold.
+        train_exclude : array
+            The training set indices to exclude for that fold.
+        """  
         grid = self.custom_polygons
         grid['grid_id'] = grid.index
         grid_ids = np.unique(grid.grid_id)

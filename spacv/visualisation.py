@@ -13,6 +13,14 @@ try:
 except ModuleNotFoundError:
     pass
     
+__all__ = [
+    "variogram_at_lag",
+    "compute_semivariance",
+    "plot_autocorrelation_ranges",
+    "aoa",
+    "plot_aoa"
+]
+    
 def variogram_at_lag(XYs, y, lags, bw):
     """
     Return semivariance values for defined lags.

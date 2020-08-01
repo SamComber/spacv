@@ -25,7 +25,7 @@ CURRENTLY UNDER CONSTRUCTION
 
 To install use pip:
 
-    $ pip install spacv
+    $ pip install
 
 Then use it as:
 
@@ -35,7 +35,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.svm import SVC
 
 
-skcv = spacv.SKCV(n_splits=4, buffer_radius=10) .split(XYs)
+skcv = spacv.SKCV(n_splits=4, buffer_radius=10).split(XYs)
 
 svc = SVC()
 

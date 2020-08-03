@@ -69,7 +69,7 @@ class HBLOCK_Tester(unittest.TestCase):
         self.fold_train_two = np.array([0,1,4,5,6,9])
         self.fold_train_three = np.array([0,2,3,4,6,7,8])
         
-    def test_skcv(self):
+    def test_hblock(self):
         
         scv = spacv.HBLOCK(buffer_radius=0, tiles_x=3, tiles_y=3, 
                            method='random', n_groups=3, random_state=12)
@@ -102,17 +102,56 @@ class HBLOCK_Tester(unittest.TestCase):
         np.testing.assert_equal(self.fold_train_three, scv_train_three)
 
     
+class SKCVUnprojected_Tester(unittest.TestCase):
+    def setUp(self):
+        
+        pass
+    
+    def test_unprojected_coords_skcv(self):
+        
+        pass
+    
+class SLOO_Tester(unittest.TestCase):
+    def setUp(self):
+        
+        pass
+    
+    def test_sloo(self):
+        
+        pass
+    
+class LatticeSKCV_Tester(unittest.TestCase):
+    def setUp(self):
+        
+        pass
+    
+    def test_lattice_skcv(self):
+        
+        pass
+
+    
 class RepeatSKCV_Tester(unittest.TestCase):
     def setUp(self):
         
         pass
     
-    def test_skcv(self):
+    def test_repeated_skcv(self):
         
         pass
+    
+class UserDefinedSCV_Tester(unittest.TestCase):
+    def setUp(self):
+        
+        pass
+    
+    def test_userdefined_skcv(self):
+        
+        pass
+    
+
         
 suite = unittest.TestSuite()
-test_classes = [SKCV_Tester]
+test_classes = [SKCV_Tester, HBLOCK_Tester]
 for i in test_classes:
     a = unittest.TestLoader().loadTestsFromTestCase(i)
     suite.addTest(a)
@@ -120,8 +159,3 @@ for i in test_classes:
 if __name__ == "__main__":
     runner = unittest.TextTestRunner()
     runner.run(suite)
-
-
-
-
-    

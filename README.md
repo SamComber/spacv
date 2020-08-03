@@ -30,15 +30,18 @@ To install use pip:
 Then use it as:
 
 ```python
-import spacv
-from sklearn.model_selection import cross_val_score
-from sklearn.svm import SVC
+df = gpd.read_file('data/baltim.geojson')
 
+XYs = df['geometry']
+X = df[['NROOM', 'BMENT', 'NBATH', 'PRICE', 'LOTSZ', 'SQFT']]
+y = df['PATIO']
 
 skcv = spacv.SKCV(n_splits=4, buffer_radius=10).split(XYs)
 
 svc = SVC()
 
-cross_val_score(svc, X, y, cv = skcv)
-
+cross_val_score(svc, 
+                X, 
+                y, 
+                cv = skcv)
 ```

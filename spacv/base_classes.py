@@ -16,6 +16,7 @@ class BaseSpatialCV(BaseCrossValidator, metaclass=ABCMeta):
     def split(self, XYs):
         """
         Generate indices to split data into training and test set.
+        
         Parameters
         ----------
         XYs : GeoSeries

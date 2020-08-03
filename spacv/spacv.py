@@ -20,7 +20,7 @@ class HBLOCK(BaseSpatialCV):
     into a series of grid polygons that are assigned into
     different folds based on several user-defined options. HBLOCK
     exposes several parameters for choosing block sizes, types and 
-    fold assignments.
+    fold assignment.
     
     Yields indices to split data into training and test sets.
     
@@ -60,6 +60,8 @@ class HBLOCK(BaseSpatialCV):
         border between two grids. Defaults to euclidean assuming
         projected coordinate system, otherwise use haversine for
         unprojected spaces.
+    random_state : int, default=None
+        random_state is the seed used by the random number generator.
         
     Examples
     -------- 
@@ -163,9 +165,7 @@ class SKCV(BaseSpatialCV):
         Buffer radius (dead zone) to exclude training points that are 
         within a defined distance of test data within a fold.
     random_state : int, RandomState instance or None, optional, default=None
-        If int, random_state is the seed used by the random number generator.
-        If None, the random number generator is the RandomState instance used
-        by `np.random`.
+        random_state is the seed used by the random number generator.
 
     Examples
     -------- 
@@ -306,8 +306,12 @@ class UserDefinedSCV(BaseSpatialCV):
         projected coordinate system, otherwise use haversine for
         unprojected spaces.
         
-    Returns
-    -------
+    Yields
+    ------
+    test_indices : array
+        The testing set indices for that fold.
+    train_exclude : array
+        The training set indices to exclude for that fold.
     
     """
     def __init__(
@@ -341,6 +345,7 @@ class UserDefinedSCV(BaseSpatialCV):
         grid = self.custom_polygons
         grid['grid_id'] = grid.index
         grid_ids = np.unique(grid.grid_id)
+        
         XYs = assign_pt_to_grid(XYs, grid, self.distance_metric)
         
         # Yield test indices and optionally training indices within buffer

@@ -23,7 +23,7 @@ __all__ = [
     
 def variogram_at_lag(XYs, y, lags, bw):
     """
-    Return semivariance values for defined lags.
+    Return semivariance values for defined lag of distance.
     
     Parameters
     ----------
@@ -112,8 +112,8 @@ def spherical(h, r, sill, nugget=0):
 def plot_autocorrelation_ranges(XYs, X, lags, bw):
     """
     Plot spatial autocorrelation ranges for input covariates. Suggested 
-    block size based on median autocorrelation range across the data is
-    also reported by horiztonal line.
+    block size is proposed by taking the median autocorrelation range 
+    across the data and is reported by the horiztonal line.
     
     Parameters
     ----------
@@ -168,18 +168,21 @@ def aoa(new_data,
        ):
     """
     Area of Applicability (AOA) measure for spatial prediction models from
-    Meyer and Pebesma (2020). 
+    Meyer and Pebesma (2020). The AOA defines the area for which, on average, 
+    the cross-validation error of the model applies, which is crucial for 
+    cases where spatial predictions are used to inform decision-making.
     
     Parameters
     ----------
     new_data : GeoDataFrame
         A GeoDataFrame containing unseen data to measure AOA for.
     training_data : GeoDataFrame
-        
+        A GeoDataFrame containing the features used for model training.
     thres : default=0.95
-        Threshold used to 
-    fold_indices :
-        
+        Threshold used to identify predictive area of applicability.
+    fold_indices : iterable, default=None
+        iterable consisting of training indices that identify instances in the
+        folds.
     distance_metric : string, default='euclidean'
         Distance metric to calculate distances between new_data and training_data.
         Defaults to euclidean for projected CRS, otherwise haversine for unprojected.
@@ -239,11 +242,23 @@ def aoa(new_data,
     
     return DIs, masked_result
 
-def plot_aoa(new_data, training_data, columns, figsize, fold_indices=None, **kwargs):
+def plot_aoa(new_data, training_data, columns, figsize=(14,4), fold_indices=None, **kwargs):
     """
-    
-    
-    
+     Parameters
+    ----------
+    new_data : GeoDataFrame
+        A GeoDataFrame containing unseen data to measure AOA for.
+    training_data : GeoDataFrame
+        A GeoDataFrame containing the features used for model training.
+    columns : array
+        Column names of variables used to assess disimilarity between
+        new_data and training_data.
+    figsize : tuple, default=(14,4)
+        Width, height of figure in inches.
+    fold_indices : iterable, default=None
+        Iterable consisting of training indices that identify instances in the
+        folds. 
+        
     Returns
     -------
     fig : matplotlip Figure instance

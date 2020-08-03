@@ -31,12 +31,13 @@ class SquareRandomGrid_Tester(unittest.TestCase):
         self.method = 'random'
         self.n_groups = 5
         self.shape = 'square'
+        self.random_state = 123
         
         self.grid_assignment = np.array([
-            [1, 4, 0, 1],
-            [3, 4, 1, 0],
-            [1, 2, 0, 1],
-            [0, 2, 0, 4]
+               [2, 4, 2, 1],
+               [3, 2, 3, 1],
+               [1, 0, 1, 1],
+               [0, 0, 1, 3]
         ])
 
         x = np.random.randint(0, 1000, 100)
@@ -46,7 +47,7 @@ class SquareRandomGrid_Tester(unittest.TestCase):
                     {'geometry' : gpd.points_from_xy(x,y)}
                 )     
         
-    def test_systematic_grid(self):
+    def test_random_grid(self):
         np.random.seed(10)
     
         grid = construct_blocks(XYs = self.XYs, 
@@ -54,10 +55,12 @@ class SquareRandomGrid_Tester(unittest.TestCase):
                                 tiles_y = self.tiles_y, 
                                 method = self.method, 
                                 n_groups = self.n_groups,
-                                shape = self.shape)
-        
+                                shape = self.shape,
+                                random_state = self.random_state)
+
         np.testing.assert_equal(grid.shape[0], 4 * 4 )
         np.testing.assert_equal( len(grid.grid_id.unique()), 5 )
+        
         np.testing.assert_equal(grid.grid_id.values.reshape(4,4), self.grid_assignment)
 
         
@@ -98,9 +101,20 @@ class SquareSystematicGrid_Tester(unittest.TestCase):
         np.testing.assert_equal(grid.grid_id.values.reshape(5,5), self.grid_assignment)
 
         
-
+class SquareOptimizedRandomGrid_Tester(unittest.TestCase):
+    def setUp(self): 
+        pass
         
+    def test_random_optimized(self):
+        pass
         
+class HexUniqueGrid_Tester(unittest.TestCase):
+    def setUp(self):
+        np.random.seed(10)
+        pass
+    
+    def test_hex_unique_grid(self):
+        np.random.seed(10)
         
         
 suite = unittest.TestSuite()

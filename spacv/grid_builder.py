@@ -15,7 +15,9 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
                      direction='diagonal', data=None, n_groups=5, n_sims=10, 
                      distance_metric='euclidean', random_state=None):
     """
-    Build a grid over study area with user-defined number of tiles.
+    Build a grid over study area with user-defined number of tiles. This
+    function exposes a number of configurable parameters to design the shape
+    of grid, but also the fold assignment technique. 
     
     Parameters
     ----------
@@ -26,24 +28,28 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
     tiles_y : integer
         Integer declaring number of tiles along Y axis.
     method : string
-        String identifying grid assignment method.
+        String identifying grid assignment method. Options are
+        unique, systematic, random and optimized_random.
     n_groups : integer
         Integer declaring number of randomized block groups.
     direction : string
         String stating direction of systematic diagonal pattern.
+    custom_polygon : 
+        
+    random_state : int, RandomState instance or None, optional, default=None
+        If int, random_state is the seed used by the random number generator.
+        If None, the random number generator is the RandomState instance used
+        by `np.random`.
         
     Returns
     -------
     grid : GeoDataFrame Dataframe
         GeoDataFrame with square grids as shapely polygons.
-        
-    Examples
-    -------- 
-    
-    
-    
+
     """
-    # Construct grid of square polygons of defined size
+    
+
+    # Construct grid of polygons of defined size and shape
     grid = construct_grid(XYs, tiles_x, tiles_y, shape)
     
     # Set grid assignment method
@@ -51,7 +57,7 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
         grid['grid_id'] = grid.index
     elif method == 'systematic':
         if shape != 'square':
-            raise Exception('systematic grid assignment method does not work for irregular grids.')
+            raise Exception("systematic grid assignment method does not work for irregular grids.")
         grid['grid_id'] = assign_systematic(grid, tiles_x, tiles_y, direction)
     elif method == 'random':
         grid['grid_id'] = assign_randomized(grid, n_groups, random_state)
@@ -61,7 +67,7 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
                                                              n_sims, 
                                                              distance_metric)
     else:
-        raise ValueError('Method not recognised. Choose between: unique, systematic, random or optimized_random.')
+        raise ValueError("Method not recognised. Choose between: unique, systematic, random or optimized_random.")
     
     return grid
     
@@ -193,7 +199,7 @@ def assign_systematic(grid, tiles_x, tiles_y, direction='diagonal'):
         diags = [sys_matrix[::-1,:].diagonal(i) 
                      for i in range(-length+1, width)]
     else:
-        raise ValueError('Direction of systematic pattern not recognised. Choose between: diagonal or anti.')
+        raise ValueError("Direction of systematic pattern not recognised. Choose between: diagonal or anti.")
 
     # Construct lookup between diagonal element indices and grid dataframe
     systematic_lookup = dict([
@@ -227,8 +233,8 @@ def assign_optimized_random(grid, XYs, data, n_groups=5, n_sims=10, distance_met
     """
     if data is None:
         raise ValueError(
-            'Data must be supplied to spacv.HBLOCK() for computing fold' 
-            ' dissimilarity when using optimized_random method.'
+            "Data must be supplied to spacv.HBLOCK() for computing fold"
+            " dissimilarity when using optimized_random method."
         )
     data = convert_numpy(data)
     # Build dictionary of grid IDs with paired SSR for dissimilarity 

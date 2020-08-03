@@ -27,9 +27,14 @@ To install use pip:
 
     $ pip install
 
-Then use it as:
+Then build quick spatial cross-validation workflows as:
 
 ```python
+import spacv
+import geopandas as gpd
+from sklearn.model_selection import cross_val_score
+from sklearn.svm import SVC
+
 df = gpd.read_file('data/baltim.geojson')
 
 XYs = df['geometry']

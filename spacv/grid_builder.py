@@ -1,6 +1,6 @@
 import numpy as np
 import geopandas as gpd
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, asPolygon
 from matplotlib.collections import PolyCollection
 from sklearn.neighbors import BallTree
 from .utils import convert_geodataframe, geometry_to_2d, convert_numpy
@@ -102,29 +102,23 @@ def construct_square_grid(XYs, tiles_x, tiles_y):
     """
     minx, miny, maxx, maxy = XYs.total_bounds
 
-    # Set length and height of tiles
+    rows = np.array(list(np.arange(0, tiles_x))*tiles_y)
+    columns = np.repeat(np.arange(0, tiles_y), tiles_x)
+    
     dx = (maxx - minx) / tiles_x
     dy = (maxy - miny) / tiles_y
 
-    # Build grid of polygons
-    polys = []
-    for tile_y in range(0, tiles_y):
-        for tile_x in range(0, tiles_x):
-            polys.append(
-                Polygon([
-                    # bottom-left
-                    (minx + (tile_x * dx), miny + ( tile_y * dy ) ), 
-                    # bottom-right
-                    (minx + ((tile_x + 1) * dx), miny + ( tile_y * dy  ) ), 
-                    # top-right
-                    (minx + ( (tile_x + 1) * dx), miny  + ( (tile_y + 1) * dy) ), 
-                    #top-left
-                    (minx + (tile_x * dx), miny + (tile_y + 1) * dy )
-            ]))
-    grid = gpd.GeoDataFrame({'geometry':polys})
-            
-    return grid    
+    bottom_left = np.add(minx, np.multiply(rows, dx)), np.add(miny, np.multiply(columns, dy))
+    bottom_right = np.add(minx, np.multiply(rows+1, dx)), np.add(miny, np.multiply(columns, dy))
+    top_right = np.add(minx, np.multiply(rows+1, dx)), np.add(miny, np.multiply(columns+1, dy))
+    top_left = np.add(minx, np.multiply(rows, dx)), np.add(miny, np.multiply(columns+1, dy))
 
+    polys = np.vstack([bottom_left, bottom_right, top_right, top_left]).reshape(4,2,-1)
+    polys = [asPolygon(polys[:,:,i]) for i in range(tiles_x*tiles_y)]
+
+    grid = gpd.GeoDataFrame({'geometry':polys})
+
+    return grid
 
 def construct_hex_grid(XYs, tiles_x, tiles_y):
     """

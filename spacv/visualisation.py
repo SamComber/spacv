@@ -113,7 +113,8 @@ def plot_autocorrelation_ranges(XYs, X, lags, bw):
     """
     Plot spatial autocorrelation ranges for input covariates. Suggested 
     block size is proposed by taking the median autocorrelation range 
-    across the data and is reported by the horiztonal line.
+    across the data and is reported by the horiztonal line. This function
+    works best for projected coordinate systems.
     
     Parameters
     ----------
@@ -189,9 +190,9 @@ def aoa(new_data,
     Returns
     -------
     DIs : array
-    
+        Array of disimimilarity scores between training_data for new_data points.
     masked_result : array
-    
+        Binary mask that occludes points outside predictive area of applicability.
     """
     if len(training_data) <= 1:
         raise Exception('At least two training instances need to be specified.')

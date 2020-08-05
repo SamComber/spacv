@@ -5,8 +5,6 @@ that assess generalization performance to datasets with spatial dependence. `spa
 a familiar sklearn-like API to expose a suite of tools useful for points-based spatial prediction tasks.
 See the notebook `spacv_guide.ipynb` for usage.
 
-
-
 <p align="center">
 <img src="demo_viz.gif" width="300" height="300"/>
 </p>
@@ -20,6 +18,8 @@ CURRENTLY UNDER CONSTRUCTION
 * `pandas`
 * `geopandas`
 * `shapely`
+* `sklearn`
+* `scipy`
 
 ## Installation and usage
 

@@ -34,8 +34,6 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
         Integer declaring number of randomized block groups.
     direction : string
         String stating direction of systematic diagonal pattern.
-    custom_polygon : 
-        
     random_state : int, RandomState instance or None, optional, default=None
         If int, random_state is the seed used by the random number generator.
         If None, the random number generator is the RandomState instance used
@@ -47,8 +45,6 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
         GeoDataFrame with square grids as shapely polygons.
 
     """
-    
-
     # Construct grid of polygons of defined size and shape
     grid = construct_grid(XYs, tiles_x, tiles_y, shape)
     
@@ -68,7 +64,6 @@ def construct_blocks(XYs, tiles_x, tiles_y, method='unique', shape='square',
                                                              distance_metric)
     else:
         raise ValueError("Method not recognised. Choose between: unique, systematic, random or optimized_random.")
-    
     return grid
     
 def construct_grid(XYs, tiles_x, tiles_y, shape):

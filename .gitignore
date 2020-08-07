@@ -2,3 +2,6 @@ spacv/.ipynb_checkpoints/
 .ipynb_checkpoints/
 spacv/__pycache__/
 spacv/tests/__pycache__
+build/
+*.egg-info/
+dist/

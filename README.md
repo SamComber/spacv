@@ -6,7 +6,7 @@ a familiar sklearn-like API to expose a suite of tools useful for points-based s
 See the notebook `spacv_guide.ipynb` for usage.
 
 <p align="center">
-<img src="demo_viz.gif" width="300" height="300"/>
+<img src="demo_viz.gif" width="300" height="250"/>
 </p>
 
 CURRENTLY UNDER CONSTRUCTION
@@ -18,7 +18,7 @@ CURRENTLY UNDER CONSTRUCTION
 * `pandas`
 * `geopandas`
 * `shapely`
-* `sklearn`
+* `scikit-learn`
 * `scipy`
 
 ## Installation and usage
@@ -27,7 +27,7 @@ To install use pip:
 
     $ pip install
 
-Then build quick spatial cross-validation workflows as:
+Then build quick spatial cross-validation workflows with `sklearn` as:
 
 ```python
 import spacv
@@ -41,12 +41,13 @@ XYs = df['geometry']
 X = df[['NROOM', 'BMENT', 'NBATH', 'PRICE', 'LOTSZ', 'SQFT']]
 y = df['PATIO']
 
+# Build fold indices as a generator
 skcv = spacv.SKCV(n_splits=4, buffer_radius=10).split(XYs)
 
 svc = SVC()
 
-cross_val_score(svc, 
-                X, 
-                y, 
-                cv = skcv)
+cross_val_score(svc,       # Model 
+                X,         # Features
+                y,         # Labels
+                cv = skcv) # Fold indices
 ```

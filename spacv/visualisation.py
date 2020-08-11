@@ -21,7 +21,7 @@ __all__ = [
     "plot_aoa"
 ]
     
-def variogram_at_lag(XYs, y, lags, bw):
+def variogram_at_lag(XYs, x, lags, bw):
     """
     Return semivariance values for defined lag of distance.
     
@@ -29,8 +29,8 @@ def variogram_at_lag(XYs, y, lags, bw):
     ----------
     XYs : Geoseries series
         Series containing X and Y coordinates.
-    y : array or list
-        Array (N,) containing response variables.
+    X : array or list
+        Array (N,) containing variable.
     lags : array
         Array of distance lags in metres to obtain semivariances.
     bw : integer or float
@@ -42,30 +42,29 @@ def variogram_at_lag(XYs, y, lags, bw):
         Array of semivariances at defined lag points for given variable.
     """
     XYs = geometry_to_2d(XYs)
-    y = np.asarray(y)
+    x = np.asarray(x)
     paired_distances = pdist(XYs)
     pd_m = squareform(paired_distances)
-    semivariances = []
-    
-    for lag in lags:
+    semivariances = np.empty(( len(lags) ), dtype=np.float64)
+    for i, lag in enumerate(lags):
         # Mask pts outside bandwidth
         lower = pd_m >= lag-bw
         upper = pd_m <= lag+bw
         mask = np.logical_and(lower, upper)
-        semivariances.append(compute_semivariance(y, mask, bw))
+        semivariances[i] = compute_semivariance(x, mask, bw)
     return np.c_[semivariances, lags].T
 
-def compute_semivariance(y, mask, bw):
+def compute_semivariance(x, mask, bw):
     """
     Calculate semivariance for masked elements.
     """
     semis, counts = [], []
-    for i in range( len(y) ):
-        yi = np.array([y[i]])
+    for i in range( len(x) ):
+        xi = np.array([x[i]])
         mask_i = mask[i,:]
         mask_i[:i] = False
-        yj = y[mask_i]
-        ss = (yi - yj)**2 
+        xj = x[mask_i]
+        ss = (xi - xj)**2 
         filter_empty =  ss > 0. 
         if len(ss[filter_empty]) > 0:
             counts.append( len(ss[filter_empty]))
@@ -78,7 +77,6 @@ def variogram(func):
         new_args = params[1:]
         mapping = map(lambda h: func(h, *new_args), params[0])
         return np.fromiter(mapping, dtype=float)
-
     return send_params
 
 @variogram
@@ -109,7 +107,7 @@ def spherical(h, r, sill, nugget=0):
     else:
         return nugget + sill
     
-def plot_autocorrelation_ranges(XYs, X, lags, bw):
+def plot_autocorrelation_ranges(XYs, X, lags, bw, **kwargs):
     """
     Plot spatial autocorrelation ranges for input covariates. Suggested 
     block size is proposed by taking the median autocorrelation range 
@@ -122,8 +120,6 @@ def plot_autocorrelation_ranges(XYs, X, lags, bw):
         Series containing X and Y coordinates.
     X : array or dataframe
         Dataframeof covariates to calculate autocorrelation ranges over.
-    y : array or list
-        Array (N,) containing response variables.
     lags : array
         Array of distance lags in metres to obtain semivariances.
     bw : integer or float
@@ -136,9 +132,14 @@ def plot_autocorrelation_ranges(XYs, X, lags, bw):
     ax : matplotlib Axes instance
         Axes in which the figure is plotted. 
     """
+    alpha = kwargs.pop('alpha', .7)
+    font_size = kwargs.pop('font_size', 14)
+    block_suggestion_color = kwargs.pop('color', 'red')
+    figsize = kwargs.pop('figsize', (8,6))
+    
     ranges = []
     for col in X.values.T:
-        # Fit spherical model to extract effective range coefficient
+        # Fit spherical model and extract effective range parameter
         semis = variogram_at_lag(XYs, col, lags, bw)
         sv,h = semis[:,0], semis[:,1]
         start_params = [np.nanmax(h), np.nanmax(sv)]
@@ -149,15 +150,13 @@ def plot_autocorrelation_ranges(XYs, X, lags, bw):
         effective_range = cof[0]
         ranges.append(effective_range)
     x_labs = X.columns
-    f, ax = plt.subplots(1, figsize=(8,6))
-    ax.bar(x_labs, ranges, color='skyblue', alpha=.7)
+    f, ax = plt.subplots(1, figsize=figsize)
+    ax.bar(x_labs, ranges, color='skyblue', alpha=alpha)
     ax.set_ylabel("Ranges (m)")
     ax.set_xlabel("Variables")
     median_eff_range = np.median(ranges)
-
-    ax.text(0, median_eff_range + (np.max(ranges) / 100 * 3), '{:.3f}m'.format(median_eff_range), color='red', size=14 )
-    ax.axhline(median_eff_range,  color='red' , linestyle='--')
-    
+    ax.text(0, median_eff_range + (np.max(ranges) / 100 * 3), '{:.3f}m'.format(median_eff_range), color=block_suggestion_color, size=font_size )
+    ax.axhline(median_eff_range,  color=block_suggestion_color, linestyle='--')
     return f, ax
     
 def aoa(new_data, 
@@ -240,7 +239,7 @@ def aoa(new_data,
     DIs = mindist.reshape(-1)
     masked_result = np.repeat(1, len(mindist))
     masked_result[DIs > thres] = 0
-    
+
     return DIs, masked_result
 
 def plot_aoa(new_data, training_data, columns, figsize=(14,4), fold_indices=None, **kwargs):

@@ -11,7 +11,6 @@ def convert_geoseries(XYs):
         XYs = XYs.geometry
     if isinstance(XYs, np.ndarray):
         XYs = gpd.GeoSeries( gpd.points_from_xy(XYs) )
-    
     if isinstance(XYs, gpd.GeoDataFrame):
         if any(XYs.geom_type == 'Polygon') or any(XYs.geom_type == 'MultiPolygon'):
             XYs = XYs.geometry.centroid        

@@ -131,18 +131,9 @@ class HBLOCK(BaseSpatialCV):
         # Assign pts to grids
         XYs = assign_pt_to_grid(XYs, grid, self.distance_metric)
         grid_ids = np.unique(grid.grid_id)
-
+        
         # Yield test indices and optionally training indices within buffer
-        for grid_id in grid_ids:
-            test_indices = XYs.loc[XYs['grid_id'] == grid_id ].index.values
-            # Remove empty grids
-            if len(test_indices) < 1:
-                continue
-            grid_poly_buffer = grid.loc[[grid_id]].buffer(self.buffer_radius)
-            test_indices, train_exclude = \
-                super()._remove_buffered_indices(XYs, test_indices, 
-                                            self.buffer_radius, grid_poly_buffer)
-            yield test_indices, train_exclude                     
+        return super()._build_fold_indices(grid_ids, XYs, scv_type='hblock', grid=grid)     
                     
 class SKCV(BaseSpatialCV):
     """
@@ -205,14 +196,16 @@ class SKCV(BaseSpatialCV):
                     len(XYs), self.n_splits
                 )
             )
-        sloo = len(XYs) == self.n_splits
-        lattice = any(XYs.geom_type == 'Polygon') or any(XYs.geom_type == 'MultiPolygon')
-        
-        # If K = N, SLOO
-        if sloo:
+            
+        if len(XYs) == self.n_splits:
+            scv_type = 'sloo'
             num_samples = XYs.shape[0]
             indices_from_folds = np.arange(num_samples)
         else:
+            if any(XYs.geom_type == 'Polygon') or any(XYs.geom_type == 'MultiPolygon'):
+                scv_type = 'lattice'
+            else:
+                scv_type = 'skcv'
             # Partion XYs space into folds
             XYs_to_2d = geometry_to_2d(XYs)
             km_skcv = MiniBatchKMeans(n_clusters = self.n_splits, random_state=self.random_state)
@@ -224,22 +217,10 @@ class SKCV(BaseSpatialCV):
                 warn = "{} folds contain less than three points and do not form polygons.".format( check_fold_n.sum() )
                 warnings.warn(warn)
             indices_from_folds = [np.argwhere(labels == i).reshape(-1) 
-                                                  for i in uniques]    
-        for fold_indices in indices_from_folds:   
-            if sloo:
-                test_indices = np.array([fold_indices])
-                fold_polygon = XYs.loc[test_indices].buffer(self.buffer_radius)
-            elif lattice:
-                test_indices = np.array(fold_indices)
-                fold_polygon = XYs.loc[test_indices].unary_union.buffer(self.buffer_radius) 
-            else: # skcv
-                test_indices = np.array(fold_indices)
-                fold_polygon = XYs.loc[test_indices].unary_union.convex_hull.buffer(self.buffer_radius)
-                
-            test_indices, train_exclude = \
-                super()._remove_buffered_indices(XYs, test_indices, 
-                                            self.buffer_radius, fold_polygon)
-            yield test_indices, train_exclude
+                                                  for i in uniques]  
+
+        return super()._build_fold_indices(indices_from_folds, XYs, scv_type)     
+
                 
 class RepeatedSKCV(SKCV):
     """
@@ -349,16 +330,7 @@ class UserDefinedSCV(BaseSpatialCV):
         XYs = assign_pt_to_grid(XYs, grid, self.distance_metric)
         
         # Yield test indices and optionally training indices within buffer
-        for grid_id in grid_ids:
-            test_indices = XYs.loc[XYs['grid_id'] == grid_id ].index.values
-            # Remove empty grids
-            if len(test_indices) < 1:
-                continue                
-            grid_poly_buffer = grid.loc[[grid_id]].buffer(self.buffer_radius)
-            test_indices, train_exclude = \
-                super()._remove_buffered_indices(XYs, test_indices, 
-                                            self.buffer_radius, grid_poly_buffer)
-            yield test_indices, train_exclude 
+        return super()._build_fold_indices(grid_ids, XYs, scv_type='user', grid=grid) 
         
 def compute_gcv(y, X):
     """

@@ -9,8 +9,6 @@ See the notebook `spacv_guide.ipynb` for usage.
 <img src="demo_viz_buffer.gif" width="300" height="250"/>
 </p>
 
-CURRENTLY UNDER CONSTRUCTION
-
 ## Dependencies
 
 * `numpy`
@@ -25,7 +23,7 @@ CURRENTLY UNDER CONSTRUCTION
 
 To install use pip:
 
-    $ pip install
+    $ pip install spacv
 
 Then build quick spatial cross-validation workflows with `sklearn` as:
 

@@ -10,7 +10,7 @@ with open("README.md") as f:
       
 setup(
     name="spacv",
-    version="0.0.1",
+    version="0.0.21",
     description="Spatial cross-validation in Python",
     long_description=long_description,
     long_description_content_type="text/markdown",

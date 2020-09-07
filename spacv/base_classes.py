@@ -65,7 +65,7 @@ class BaseSpatialCV(BaseCrossValidator, metaclass=ABCMeta):
             # Buffer grid and clip training instances            
             candidate_deadzone = XYs.loc[~XYs.index.isin( test_indices )]            
             candidate_deadzone = convert_geodataframe(candidate_deadzone)
-            geometry_buffer = convert_geodataframe(geometry_buffer)
+            geometry_buffer = convert_geodataframe(geometry_buffer).to_crs(crs = candidate_deadzone.crs)
             deadzone_points = gpd.sjoin(candidate_deadzone, geometry_buffer)
             train_exclude = deadzone_points.loc[~deadzone_points.index.isin(test_indices)].index.values
             return test_indices, train_exclude
